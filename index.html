@@ -4,12 +4,13 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="theme-color" content="#080C14"/>
-<meta name="description" content="OCR de documentos com IA — digitalização estruturada"/>
+<meta name="description" content="OCR e classificação contabilística em lote com IA"/>
 <title>DocScan AI</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg:        #080C14;
@@ -24,8 +25,10 @@
   --blue-glow: #2D7DD240;
   --cyan:      #00D4FF;
   --amber:     #F5A623;
+  --amber-dim: #F5A62320;
   --red:       #E84545;
   --green:     #00C27A;
+  --green-dim: #00C27A20;
   --text:      #D0E4F7;
   --text2:     #6A8FAF;
   --text3:     #364D66;
@@ -47,11 +50,11 @@ body::before{
   pointer-events:none;z-index:0;
 }
 
-.app{position:relative;z-index:1;max-width:700px;margin:0 auto;padding:24px 20px 80px}
+.app{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:24px 20px 80px}
 
-.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:36px}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;gap:12px;flex-wrap:wrap}
 .hdr-left{display:flex;align-items:center;gap:14px}
-.logo{width:44px;height:44px;border-radius:var(--r2);background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;box-shadow:0 0 24px var(--blue-glow)}
+.logo{width:44px;height:44px;border-radius:var(--r2);background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;box-shadow:0 0 24px var(--blue-glow);flex-shrink:0}
 .brand-name{font-size:18px;font-weight:700;letter-spacing:-.3px;color:var(--text)}
 .brand-tag{font-size:11px;font-family:var(--mono);color:var(--cyan);margin-top:2px}
 .hdr-pill{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:99px;border:1px solid var(--border2);color:var(--text2);display:flex;align-items:center;gap:6px}
@@ -64,36 +67,6 @@ body::before{
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r3);padding:20px;margin-bottom:12px;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--blue-dim),transparent)}
 
-/* ── CAPTURE TABS ── */
-.cap-tabs{display:flex;gap:8px;margin-bottom:16px}
-.cap-tab{flex:1;padding:10px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
-.cap-tab:hover{border-color:var(--blue);color:var(--text)}
-.cap-tab.active{border-color:var(--blue);background:var(--blue-dim);color:var(--cyan)}
-.cap-tab i{font-size:18px}
-
-/* ── CAMERA ── */
-.cam-wrap{position:relative;border-radius:var(--r2);overflow:hidden;background:var(--bg3);border:1px solid var(--border);display:none}
-.cam-wrap.visible{display:block}
-#video{width:100%;display:block;max-height:320px;object-fit:cover}
-.cam-overlay{position:absolute;inset:0;pointer-events:none}
-.cam-corner{position:absolute;width:20px;height:20px;border-color:var(--cyan);border-style:solid}
-.cam-corner.tl{top:12px;left:12px;border-width:2px 0 0 2px}
-.cam-corner.tr{top:12px;right:12px;border-width:2px 2px 0 0}
-.cam-corner.bl{bottom:12px;left:12px;border-width:0 0 2px 2px}
-.cam-corner.br{bottom:12px;right:12px;border-width:0 2px 2px 0}
-.cam-controls{display:flex;gap:8px;margin-top:10px}
-.btn-cam{flex:1;padding:12px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);font-family:var(--sans);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
-.btn-cam.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn-cam:hover:not(.primary){border-color:var(--blue);color:var(--text)}
-.btn-cam.primary:hover{background:var(--blue2)}
-
-/* ── CANVAS preview ── */
-#canvas{display:none}
-.preview-wrap{display:none;position:relative;border-radius:var(--r2);overflow:hidden;border:1px solid var(--border)}
-.preview-wrap.visible{display:block}
-#preview-img{width:100%;display:block;max-height:280px;object-fit:contain;background:var(--bg3)}
-.preview-actions{display:flex;gap:8px;margin-top:8px}
-
 /* ── DROP ZONE ── */
 .drop{border:1.5px dashed var(--border2);border-radius:var(--r2);padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
 .drop:hover,.drop.over{border-color:var(--blue);background:var(--blue-dim)}
@@ -105,35 +78,41 @@ body::before{
 .dtag{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--border2);color:var(--text3)}
 #fi{display:none}
 
+/* ── COUNTER / LIMITE ── */
+.vol-bar{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono);font-size:12px}
+.vol-bar.warn{border-color:var(--amber);background:var(--amber-dim)}
+.vol-bar.over{border-color:var(--red);background:#E8454520}
+.vol-count{color:var(--text)}
+.vol-count b{color:var(--cyan)}
+.vol-bar.warn .vol-count b{color:var(--amber)}
+.vol-bar.over .vol-count b{color:var(--red)}
+.vol-lotes{color:var(--text3)}
+
 /* ── FILE LIST ── */
-.flist{margin-top:14px;display:flex;flex-direction:column;gap:6px}
-.fitem{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);animation:fadeIn .2s ease}
+.flist{margin-top:14px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+.flist::-webkit-scrollbar{width:4px}
+.flist::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.fitem{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.fitem-icon{font-size:18px;color:var(--blue)}
+.fitem-icon{font-size:17px;color:var(--blue);flex-shrink:0}
 .fitem-name{flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fitem-meta{font-family:var(--mono);font-size:11px;color:var(--text3)}
-.fitem-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;padding:2px;border-radius:4px}
+.fitem-meta{font-family:var(--mono);font-size:11px;color:var(--text3);flex-shrink:0}
+.fitem-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;padding:2px;border-radius:4px;flex-shrink:0}
 .fitem-rm:hover{color:var(--red);background:#e8454520}
+.flist-actions{display:flex;justify-content:flex-end;margin-top:8px}
+.btn-clear{background:none;border:none;color:var(--text3);font-family:var(--mono);font-size:11px;cursor:pointer;padding:4px 8px}
+.btn-clear:hover{color:var(--red)}
 
 /* ── CONFIG ── */
-.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.cfg-field{display:flex;flex-direction:column;gap:5px}
+.cfg-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
 .cfg-field label{font-family:var(--mono);font-size:11px;color:var(--text2)}
-.cfg-field input,.cfg-field select{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;outline:none;transition:border .15s}
+.cfg-field input,.cfg-field select{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;outline:none;transition:border .15s;width:100%}
 .cfg-field input:focus,.cfg-field select:focus{border-color:var(--blue)}
 .cfg-field input::placeholder{color:var(--text3)}
-.cfg-span2{grid-column:span 2}
 .webhook-row{display:flex;gap:8px}
 .webhook-row input{flex:1}
 .btn-test{font-family:var(--mono);font-size:11px;padding:9px 14px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .15s}
 .btn-test:hover{border-color:var(--blue);color:var(--blue)}
-
-/* ── OUTPUT FORMAT ── */
-.fmt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.fmt-card{padding:12px 8px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;text-align:center}
-.fmt-card i{font-size:22px}
-.fmt-card:hover{border-color:var(--blue);color:var(--text)}
-.fmt-card.active{border-color:var(--cyan);background:#00D4FF15;color:var(--cyan)}
 
 /* ── STEPS ── */
 .steps{display:flex;align-items:flex-start;gap:0;margin-bottom:16px}
@@ -153,7 +132,7 @@ body::before{
 .pbar{height:3px;background:var(--border);border-radius:99px;overflow:hidden}
 .pfill{height:100%;background:linear-gradient(90deg,var(--blue2),var(--cyan));border-radius:99px;width:0%;transition:width .5s ease}
 
-.logbox{display:none;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;max-height:96px;overflow-y:auto;font-family:var(--mono);font-size:11px;color:var(--text3)}
+.logbox{display:none;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;max-height:110px;overflow-y:auto;font-family:var(--mono);font-size:11px;color:var(--text3)}
 .logbox::-webkit-scrollbar{width:4px}
 .logbox::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .log-line{margin-bottom:3px;line-height:1.5}
@@ -170,27 +149,91 @@ body::before{
 
 /* ── RESULTADO ── */
 .result-wrap{display:none;animation:fadeIn .4s ease}
-.result-card{background:linear-gradient(135deg,#091428,#0D1E3A);border:1px solid #1A3A6A;border-radius:var(--r3);padding:20px;margin-bottom:12px}
-.res-hdr{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.res-hdr-icon{font-size:28px;color:var(--cyan)}
-.res-title{font-size:17px;font-weight:700;color:var(--text)}
-.res-sub{font-family:var(--mono);font-size:11px;color:var(--cyan);margin-top:2px}
 
-/* ── RESULTADO TEXTO ── */
-.result-text-area{background:var(--bg);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:14px;font-size:13px;line-height:1.7;color:var(--text);max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:var(--mono)}
-.result-text-area::-webkit-scrollbar{width:4px}
-.result-text-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.resumo-card{background:linear-gradient(135deg,#091428,#0D1E3A);border:1px solid #1A3A6A;border-radius:var(--r3);padding:20px;margin-bottom:12px}
+.resumo-top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.resumo-icon{font-size:26px;color:var(--cyan)}
+.resumo-title{font-size:16px;font-weight:700;color:var(--text)}
+.resumo-sub{font-family:var(--mono);font-size:11px;color:var(--cyan);margin-top:2px}
 
-.fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-.field-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px}
-.field-label{font-family:var(--mono);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px}
-.field-value{font-size:14px;font-weight:600;color:var(--text)}
-.field-value.highlight{color:var(--cyan)}
+.resumo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rk{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:14px 10px;text-align:center}
+.rk-val{font-size:24px;font-weight:800;line-height:1}
+.rk-val.b{color:var(--cyan)}
+.rk-val.g{color:var(--green)}
+.rk-val.a{color:var(--amber)}
+.rk-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.06em}
 
-.dl-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
-.btn-dl{padding:11px 8px;border-radius:var(--r);font-family:var(--mono);font-size:11px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
-.btn-dl-main{background:var(--blue);color:#fff;border:none}
-.btn-dl-main:hover{background:var(--blue2)}
+/* ── ALERTA LINK SHEET (condicional) ── */
+.alerta-perfis{display:none;margin-top:14px;padding:13px 16px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:var(--r2);align-items:center;gap:12px}
+.alerta-perfis.visible{display:flex}
+.alerta-perfis i{font-size:20px;color:var(--amber);flex-shrink:0}
+.alerta-perfis-text{flex:1;font-size:12.5px;color:var(--text);line-height:1.5}
+.alerta-perfis-text b{color:var(--amber)}
+.alerta-perfis a{color:var(--cyan);font-weight:600;text-decoration:none;white-space:nowrap;font-family:var(--mono);font-size:12px}
+.alerta-perfis a:hover{text-decoration:underline}
+
+/* ── FILTROS ── */
+.filtros{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filtro-btn{font-family:var(--mono);font-size:11px;padding:7px 13px;border-radius:99px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+.filtro-btn:hover{border-color:var(--text2)}
+.filtro-btn.active{border-color:var(--blue);background:var(--blue-dim);color:var(--cyan)}
+.filtro-dot{width:7px;height:7px;border-radius:50%}
+.filtro-dot.todos{background:var(--text3)}
+.filtro-dot.verde{background:var(--green)}
+.filtro-dot.amarelo{background:var(--amber)}
+
+/* ── LISTA DE DOCUMENTOS ── */
+.doc-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.doc-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;cursor:pointer;transition:border-color .15s}
+.doc-card:hover{border-color:var(--border2)}
+.doc-card.expanded{border-color:var(--blue)}
+
+.doc-row{display:flex;align-items:center;gap:12px}
+.doc-sem{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.doc-sem.verde{background:var(--green);box-shadow:0 0 8px var(--green)}
+.doc-sem.amarelo{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+
+.doc-main{flex:1;min-width:0}
+.doc-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.doc-sub{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.doc-valor{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text);text-align:right;flex-shrink:0}
+.doc-conta{font-family:var(--mono);font-size:10px;color:var(--cyan);text-align:right;margin-top:2px}
+
+.doc-chevron{color:var(--text3);font-size:16px;transition:transform .2s;flex-shrink:0}
+.doc-card.expanded .doc-chevron{transform:rotate(90deg);color:var(--blue)}
+
+.doc-detail{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.doc-card.expanded .doc-detail{display:block;animation:fadeIn .2s ease}
+
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.detail-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px}
+.detail-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.detail-value{font-size:13px;color:var(--text);font-weight:500}
+
+.detail-pgc{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.detail-pgc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.detail-pgc-conta{font-family:var(--mono);font-size:13px;color:var(--cyan);font-weight:700}
+.detail-pgc-nome{font-size:12px;color:var(--text2);margin-top:2px}
+.detail-pgc-just{font-size:12px;color:var(--text2);line-height:1.5;font-style:italic;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
+
+.ramo-tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:99px;margin-bottom:10px}
+.ramo-tag.confirmado{background:var(--green-dim);color:var(--green);border:1px solid var(--green)}
+.ramo-tag.pendente{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)}
+
+.confianca-bar-wrap{margin-top:4px}
+.confianca-top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px}
+.confianca-track{height:4px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--border)}
+.confianca-fill{height:100%;border-radius:99px;transition:width .4s ease}
+.confianca-fill.alta{background:var(--green)}
+.confianca-fill.baixa{background:var(--amber)}
+
+/* ── EXPORT ── */
+.dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn-dl{padding:13px;border-radius:var(--r);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s}
+.btn-dl-main{background:var(--green);color:#04231a;border:none}
+.btn-dl-main:hover{filter:brightness(1.08)}
 .btn-dl-sec{background:none;color:var(--text2);border:1px solid var(--border2)}
 .btn-dl-sec:hover{border-color:var(--blue);color:var(--blue)}
 
@@ -199,11 +242,9 @@ body::before{
 .toast.show{transform:translateX(-50%) translateY(0)}
 
 @media(max-width:500px){
-  .fmt-grid{grid-template-columns:repeat(2,1fr)}
-  .cfg-grid{grid-template-columns:1fr}
-  .cfg-span2{grid-column:span 1}
-  .dl-grid{grid-template-columns:1fr 1fr}
-  .fields-grid{grid-template-columns:1fr}
+  .detail-grid{grid-template-columns:1fr}
+  .resumo-grid{grid-template-columns:repeat(3,1fr)}
+  .doc-valor{font-size:13px}
 }
 </style>
 </head>
@@ -212,145 +253,72 @@ body::before{
 
   <header class="hdr">
     <div class="hdr-left">
-      <div class="logo"><i class="ti ti-scan"></i></div>
+      <div class="logo"><i class="ti ti-stack-2"></i></div>
       <div class="brand">
         <div class="brand-name">DocScan AI</div>
-        <div class="brand-tag">v1.0 · Fixer OS</div>
+        <div class="brand-tag">v2.0 · Lote + PGC contextual</div>
       </div>
     </div>
     <div class="hdr-pill"><span class="live-dot"></span> GAS + Gemini</div>
   </header>
 
-  <!-- STEP 1: CAPTURA -->
-  <div class="slabel">01 — Captura do documento</div>
+  <!-- STEP 1: LOTE DE DOCUMENTOS -->
+  <div class="slabel">01 — Pasta de documentos</div>
   <div class="card">
-    <div class="cap-tabs">
-      <button class="cap-tab active" id="tab-upload" onclick="switchTab('upload')">
-        <i class="ti ti-upload"></i> Upload
-      </button>
-      <button class="cap-tab" id="tab-camera" onclick="switchTab('camera')">
-        <i class="ti ti-camera"></i> Câmara
-      </button>
+    <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
+      <i class="ti ti-folder-up drop-icon"></i>
+      <div class="drop-main">Solta a pasta inteira ou selecciona vários ficheiros</div>
+      <div class="drop-sub">Facturas, recibos, extractos — até 100+ documentos numa operação</div>
+      <div class="drop-tags">
+        <span class="dtag">PDF</span>
+        <span class="dtag">JPG</span>
+        <span class="dtag">PNG</span>
+        <span class="dtag">CSV</span>
+        <span class="dtag">XLSX</span>
+      </div>
+    </div>
+    <input type="file" id="fi" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.xlsx,.txt" onchange="onFiles(this.files)"/>
+
+    <div class="vol-bar" id="vol-bar" style="display:none">
+      <span class="vol-count"><b id="vol-n">0</b> documento(s) seleccionado(s)</span>
+      <span class="vol-lotes" id="vol-lotes"></span>
     </div>
 
-    <!-- UPLOAD -->
-    <div id="panel-upload">
-      <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
-        <i class="ti ti-file-upload drop-icon"></i>
-        <div class="drop-main">Solta o documento aqui ou clica para seleccionar</div>
-        <div class="drop-sub">Facturas, extractos, recibos, contratos</div>
-        <div class="drop-tags">
-          <span class="dtag">PDF</span>
-          <span class="dtag">JPG</span>
-          <span class="dtag">PNG</span>
-          <span class="dtag">WEBP</span>
-          <span class="dtag">XLSX</span>
-          <span class="dtag">DOCX</span>
-        </div>
-      </div>
-      <input type="file" id="fi" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.docx,.txt" onchange="onFiles(this.files)"/>
-      <div class="flist" id="flist"></div>
+    <div class="flist" id="flist"></div>
+    <div class="flist-actions" id="flist-actions" style="display:none">
+      <button class="btn-clear" onclick="limparTudo()"><i class="ti ti-trash"></i> Limpar tudo</button>
     </div>
+  </div>
 
-    <!-- CÂMARA -->
-    <div id="panel-camera" style="display:none">
-      <div class="cam-wrap" id="cam-wrap">
-        <video id="video" autoplay playsinline muted></video>
-        <div class="cam-overlay">
-          <div class="cam-corner tl"></div>
-          <div class="cam-corner tr"></div>
-          <div class="cam-corner bl"></div>
-          <div class="cam-corner br"></div>
-        </div>
-      </div>
-      <canvas id="canvas"></canvas>
-      <div class="preview-wrap" id="preview-wrap">
-        <img id="preview-img" alt="Prévia do documento capturado"/>
-        <div class="preview-actions">
-          <button class="btn-cam" onclick="repetirCaptura()"><i class="ti ti-refresh"></i> Repetir</button>
-          <button class="btn-cam primary" onclick="confirmarCaptura()"><i class="ti ti-check"></i> Usar esta imagem</button>
-        </div>
-      </div>
-      <div class="cam-controls" id="cam-controls">
-        <button class="btn-cam" id="btn-start-cam" onclick="iniciarCamera()">
-          <i class="ti ti-camera"></i> Activar câmara
-        </button>
-        <button class="btn-cam primary" id="btn-capture" onclick="capturar()" style="display:none">
-          <i class="ti ti-aperture"></i> Fotografar
-        </button>
-        <button class="btn-cam" id="btn-stop-cam" onclick="pararCamera()" style="display:none">
-          <i class="ti ti-x"></i> Parar
-        </button>
+  <!-- STEP 2: CONFIGURAÇÃO -->
+  <div class="slabel">02 — Configuração</div>
+  <div class="card">
+    <div class="cfg-field">
+      <label>Idioma dos documentos</label>
+      <select id="idioma">
+        <option value="pt">Português</option>
+        <option value="pt-mz">Português (Moçambique)</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <div class="cfg-field">
+      <label>URL do Google Apps Script</label>
+      <div class="webhook-row">
+        <input id="gas-url" type="url" placeholder="https://script.google.com/macros/s/.../exec"/>
+        <button class="btn-test" onclick="testarGAS()"><i class="ti ti-plug"></i> Testar</button>
       </div>
     </div>
   </div>
 
-  <!-- STEP 2: TIPO DE DOCUMENTO -->
-  <div class="slabel">02 — Tipo de documento</div>
-  <div class="card">
-    <div class="cfg-grid">
-      <div class="cfg-field">
-        <label>Tipo</label>
-        <select id="tipo-doc">
-          <option value="factura">Factura / Recibo</option>
-          <option value="extracto">Extracto bancário</option>
-          <option value="contrato">Contrato</option>
-          <option value="relatorio">Relatório</option>
-          <option value="outro">Outro documento</option>
-        </select>
-      </div>
-      <div class="cfg-field">
-        <label>Idioma</label>
-        <select id="idioma">
-          <option value="pt">Português</option>
-          <option value="en">English</option>
-          <option value="pt-mz">Português (Moçambique)</option>
-        </select>
-      </div>
-      <div class="cfg-field cfg-span2">
-        <label>URL do Google Apps Script</label>
-        <div class="webhook-row">
-          <input id="gas-url" type="url" placeholder="https://script.google.com/macros/s/.../exec"/>
-          <button class="btn-test" onclick="testarGAS()"><i class="ti ti-plug"></i> Testar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP 3: FORMATO DE SAÍDA -->
-  <div class="slabel">03 — Formato de saída</div>
-  <div class="card">
-    <div class="fmt-grid">
-      <button class="fmt-card active" id="fmt-estruturado" onclick="setFmt('estruturado')">
-        <i class="ti ti-layout-list"></i>
-        Estruturado
-      </button>
-      <button class="fmt-card" id="fmt-txt" onclick="setFmt('txt')">
-        <i class="ti ti-file-text"></i>
-        Texto TXT
-      </button>
-      <button class="fmt-card" id="fmt-pdf" onclick="setFmt('pdf')">
-        <i class="ti ti-file-type-pdf"></i>
-        PDF limpo
-      </button>
-      <button class="fmt-card" id="fmt-word" onclick="setFmt('word')">
-        <i class="ti ti-file-type-doc"></i>
-        Word DOCX
-      </button>
-    </div>
-    <div style="margin-top:10px;font-size:12px;color:var(--text2);font-family:var(--mono)" id="fmt-desc">
-      Extrai campos estruturados: data, NIF, valores, IVA, totais — prontos para lançamento
-    </div>
-  </div>
-
-  <!-- STEP 4: PROCESSAMENTO -->
-  <div class="slabel">04 — Processamento</div>
+  <!-- STEP 3: PROCESSAMENTO -->
+  <div class="slabel">03 — Processamento</div>
   <div class="card">
     <div class="steps">
-      <div class="step" id="s1"><div class="sdot"><i class="ti ti-file"></i></div><div class="slbl">Captura</div></div>
+      <div class="step" id="s1"><div class="sdot"><i class="ti ti-folder"></i></div><div class="slbl">Lote</div></div>
       <div class="step" id="s2"><div class="sdot"><i class="ti ti-brand-google-drive"></i></div><div class="slbl">Drive</div></div>
-      <div class="step" id="s3"><div class="sdot"><i class="ti ti-sparkles"></i></div><div class="slbl">Gemini</div></div>
-      <div class="step" id="s4"><div class="sdot"><i class="ti ti-file-check"></i></div><div class="slbl">Saída</div></div>
+      <div class="step" id="s3"><div class="sdot"><i class="ti ti-sparkles"></i></div><div class="slbl">Extracção</div></div>
+      <div class="step" id="s4"><div class="sdot"><i class="ti ti-building"></i></div><div class="slbl">Empresa</div></div>
+      <div class="step" id="s5"><div class="sdot"><i class="ti ti-list-check"></i></div><div class="slbl">PGC</div></div>
     </div>
     <div class="pbar-wrap" id="pbar-wrap">
       <div class="pbar-top"><span id="pbar-label">Aguardando...</span><span id="pbar-pct">0%</span></div>
@@ -361,37 +329,53 @@ body::before{
 
   <button class="btn-run" id="btn-run" onclick="iniciar()" disabled>
     <i class="ti ti-scan" id="run-icon"></i>
-    <span id="run-label">Digitalizar Documento</span>
+    <span id="run-label">Processar Lote</span>
   </button>
 
   <!-- RESULTADO -->
   <div class="result-wrap" id="result-wrap">
-    <div class="slabel">05 — Resultado</div>
-    <div class="result-card">
-      <div class="res-hdr">
-        <i class="ti ti-circle-check res-hdr-icon"></i>
+    <div class="slabel">04 — Resultado</div>
+
+    <div class="resumo-card">
+      <div class="resumo-top">
+        <i class="ti ti-circle-check resumo-icon"></i>
         <div>
-          <div class="res-title" id="res-title">Documento digitalizado</div>
-          <div class="res-sub" id="res-sub">— campos extraídos com sucesso</div>
+          <div class="resumo-title">Lote processado</div>
+          <div class="resumo-sub" id="resumo-tempo">—</div>
         </div>
       </div>
-
-      <!-- campos estruturados (visível quando fmt=estruturado) -->
-      <div id="fields-section">
-        <div class="fields-grid" id="fields-grid"></div>
+      <div class="resumo-grid">
+        <div class="rk"><div class="rk-val b" id="rk-total">0</div><div class="rk-lbl">Documentos</div></div>
+        <div class="rk"><div class="rk-val g" id="rk-verde">0</div><div class="rk-lbl">Confirmados</div></div>
+        <div class="rk"><div class="rk-val a" id="rk-amarelo">0</div><div class="rk-lbl">A confirmar</div></div>
       </div>
 
-      <!-- texto livre (visível quando fmt=txt/word) -->
-      <div id="text-section" style="display:none">
-        <div class="result-text-area" id="result-text"></div>
+      <div class="alerta-perfis" id="alerta-perfis">
+        <i class="ti ti-alert-triangle"></i>
+        <div class="alerta-perfis-text">
+          Há itens com <b>ramo de actividade ou classificação por confirmar</b>. Revê e confirma na Sheet de perfis — fica válido para todos os próximos documentos desta empresa.
+        </div>
+        <a id="link-perfis" href="#" target="_blank">Abrir Sheet →</a>
       </div>
+    </div>
 
-      <div class="dl-grid">
-        <button class="btn-dl btn-dl-main" id="btn-dl-pdf" onclick="dlPDF()"><i class="ti ti-file-type-pdf"></i> PDF</button>
-        <button class="btn-dl btn-dl-sec"  id="btn-dl-txt" onclick="dlTXT()"><i class="ti ti-file-text"></i> TXT</button>
-        <button class="btn-dl btn-dl-sec"  id="btn-dl-json" onclick="dlJSON()"><i class="ti ti-braces"></i> JSON</button>
-        <button class="btn-dl btn-dl-sec"  onclick="partilhar()"><i class="ti ti-share"></i> Partilhar</button>
-      </div>
+    <div class="filtros">
+      <button class="filtro-btn active" data-f="todos" onclick="filtrar('todos')">
+        <span class="filtro-dot todos"></span> Todos
+      </button>
+      <button class="filtro-btn" data-f="verde" onclick="filtrar('verde')">
+        <span class="filtro-dot verde"></span> Confirmados
+      </button>
+      <button class="filtro-btn" data-f="amarelo" onclick="filtrar('amarelo')">
+        <span class="filtro-dot amarelo"></span> A confirmar
+      </button>
+    </div>
+
+    <div class="doc-list" id="doc-list"></div>
+
+    <div class="dl-grid">
+      <button class="btn-dl btn-dl-main" onclick="exportarExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button>
+      <button class="btn-dl btn-dl-sec" onclick="exportarJSON()"><i class="ti ti-braces"></i> Exportar JSON</button>
     </div>
   </div>
 
@@ -402,100 +386,19 @@ body::before{
 <script>
 // ── STATE ──
 let files = [];
-let capturedImageBlob = null;
-let fmtAtivo = 'estruturado';
-let ocrResult = null;
-let stream = null;
+let resultado = null;
+let filtroActivo = 'todos';
 const GAS_KEY = 'docscan_gas_url';
-
-const FMT_DESC = {
-  estruturado: 'Extrai campos estruturados: data, NIF, valores, IVA, totais — prontos para lançamento',
-  txt: 'Devolve todo o texto do documento limpo e formatado, pronto para copiar',
-  pdf: 'Gera um PDF limpo e pesquisável a partir do documento original',
-  word: 'Gera um ficheiro DOCX editável com o conteúdo digitalizado'
-};
+const TAMANHO_LOTE = 8; // espelha CONFIG.TAMANHO_LOTE do Code_v2.gs — só para estimar nº de chamadas no UI
 
 // ── INIT ──
 window.addEventListener('load', () => {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw_docscan.js').catch(()=>{});
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('ocr_sw.js').catch(()=>{});
   const saved = localStorage.getItem(GAS_KEY);
   if (saved) document.getElementById('gas-url').value = saved;
 });
 
-// ── TABS ──
-function switchTab(tab) {
-  document.getElementById('tab-upload').classList.toggle('active', tab==='upload');
-  document.getElementById('tab-camera').classList.toggle('active', tab==='camera');
-  document.getElementById('panel-upload').style.display = tab==='upload' ? '' : 'none';
-  document.getElementById('panel-camera').style.display = tab==='camera' ? '' : 'none';
-  if (tab === 'camera') checkReady();
-}
-
-// ── CÂMARA ──
-async function iniciarCamera() {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} } });
-    const video = document.getElementById('video');
-    video.srcObject = stream;
-    document.getElementById('cam-wrap').classList.add('visible');
-    document.getElementById('btn-start-cam').style.display = 'none';
-    document.getElementById('btn-capture').style.display = 'flex';
-    document.getElementById('btn-stop-cam').style.display = 'flex';
-    document.getElementById('preview-wrap').classList.remove('visible');
-    log('Câmara activada ✓', 'ok');
-  } catch(e) {
-    toast('Sem acesso à câmara: ' + e.message, 'err');
-    log('Erro câmara: ' + e.message, 'err');
-  }
-}
-
-function capturar() {
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
-  canvas.getContext('2d').drawImage(video, 0, 0);
-  canvas.toBlob(blob => {
-    capturedImageBlob = blob;
-    const url = URL.createObjectURL(blob);
-    document.getElementById('preview-img').src = url;
-    document.getElementById('preview-wrap').classList.add('visible');
-    document.getElementById('cam-wrap').classList.remove('visible');
-    document.getElementById('btn-capture').style.display = 'none';
-    document.getElementById('btn-stop-cam').style.display = 'none';
-    log('Fotografia capturada ✓', 'ok');
-    checkReady();
-  }, 'image/jpeg', 0.92);
-  pararCamera(false);
-}
-
-function repetirCaptura() {
-  capturedImageBlob = null;
-  document.getElementById('preview-wrap').classList.remove('visible');
-  iniciarCamera();
-  checkReady();
-}
-
-function confirmarCaptura() {
-  const f = new File([capturedImageBlob], 'captura_' + Date.now() + '.jpg', { type: 'image/jpeg' });
-  files = [f];
-  renderFiles();
-  switchTab('upload');
-  toast('Imagem adicionada ✓');
-  checkReady();
-}
-
-function pararCamera(resetUI = true) {
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  if (resetUI) {
-    document.getElementById('cam-wrap').classList.remove('visible');
-    document.getElementById('btn-start-cam').style.display = '';
-    document.getElementById('btn-capture').style.display = 'none';
-    document.getElementById('btn-stop-cam').style.display = 'none';
-  }
-}
-
-// ── UPLOAD ──
+// ── DROP ZONE ──
 const dz = document.getElementById('dz');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('over'));
@@ -509,30 +412,37 @@ function onFiles(newFiles) {
 
 function renderFiles() {
   const list = document.getElementById('flist');
+  const volBar = document.getElementById('vol-bar');
+  const actions = document.getElementById('flist-actions');
   list.innerHTML = '';
+
   files.forEach((f, i) => {
     const ext = f.name.split('.').pop().toUpperCase();
     const sz = f.size > 1048576 ? (f.size/1048576).toFixed(1)+'MB' : Math.round(f.size/1024)+'KB';
-    const ico = ['PDF'].includes(ext) ? 'ti-file-type-pdf' : ['JPG','JPEG','PNG','WEBP'].includes(ext) ? 'ti-photo' : ['XLSX'].includes(ext) ? 'ti-file-spreadsheet' : 'ti-file';
+    const ico = ['PDF'].includes(ext) ? 'ti-file-type-pdf' : ['JPG','JPEG','PNG','WEBP'].includes(ext) ? 'ti-photo' : ['XLSX','CSV'].includes(ext) ? 'ti-file-spreadsheet' : 'ti-file';
     const d = document.createElement('div');
     d.className = 'fitem';
     d.innerHTML = `<i class="ti ${ico} fitem-icon"></i><span class="fitem-name">${f.name}</span><span class="fitem-meta">${ext} · ${sz}</span><button class="fitem-rm" onclick="removeFile(${i})"><i class="ti ti-x"></i></button>`;
     list.appendChild(d);
   });
+
+  if (files.length > 0) {
+    volBar.style.display = 'flex';
+    actions.style.display = 'flex';
+    const nLotes = Math.ceil(files.length / TAMANHO_LOTE);
+    document.getElementById('vol-n').textContent = files.length;
+    document.getElementById('vol-lotes').textContent = nLotes + ' chamada(s) à IA (lotes de ' + TAMANHO_LOTE + ')';
+    volBar.className = 'vol-bar' + (files.length > 150 ? ' over' : files.length > 80 ? ' warn' : '');
+  } else {
+    volBar.style.display = 'none';
+    actions.style.display = 'none';
+  }
 }
 
 function removeFile(i) { files.splice(i,1); renderFiles(); checkReady(); }
+function limparTudo() { files = []; renderFiles(); checkReady(); }
 function checkReady() {
   document.getElementById('btn-run').disabled = files.length === 0;
-}
-
-// ── FORMATO ──
-function setFmt(fmt) {
-  fmtAtivo = fmt;
-  ['estruturado','txt','pdf','word'].forEach(f => {
-    document.getElementById('fmt-'+f).classList.toggle('active', f===fmt);
-  });
-  document.getElementById('fmt-desc').textContent = FMT_DESC[fmt];
 }
 
 // ── TESTAR GAS ──
@@ -542,59 +452,65 @@ async function testarGAS() {
   try {
     const r = await fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({teste:true}) });
     const j = await r.json();
-    if (j.ok) { log('GAS ligado ✓', 'ok'); toast('GAS operacional!'); }
-    else log('GAS: ' + (j.erro||'ok'), 'warn');
-  } catch(e) { log('Erro: '+e.message,'err'); toast('Verifica o URL','warn'); }
+    if (j.ok) { toast('GAS ligado — ' + (j.versao || '') + ' ✓'); }
+    else toast('GAS respondeu com erro', 'warn');
+  } catch(e) { toast('Sem resposta: ' + e.message, 'err'); }
 }
 
 // ── PROCESSAR ──
 async function iniciar() {
   const url = document.getElementById('gas-url').value.trim();
-  const tipo = document.getElementById('tipo-doc').value;
   const idioma = document.getElementById('idioma').value;
   localStorage.setItem(GAS_KEY, url);
 
-  ocrResult = null;
+  if (!url) { toast('Configura o URL do GAS primeiro', 'warn'); return; }
+
+  resultado = null;
   document.getElementById('result-wrap').style.display = 'none';
   document.getElementById('pbar-wrap').style.display = 'block';
   document.getElementById('logbox').style.display = 'block';
   document.getElementById('logbox').innerHTML = '';
-  ['s1','s2','s3','s4'].forEach(id => setStep(id,''));
+  ['s1','s2','s3','s4','s5'].forEach(id => setStep(id,''));
   setBtnState(true);
 
   const t0 = Date.now();
   try {
-    setStep('s1','active'); prog(10, 'A preparar ficheiro...');
+    setStep('s1','active'); prog(8, 'A preparar lote...');
     log('A codificar ' + files.length + ' ficheiro(s)...');
     const arquivos = await Promise.all(files.map(toBase64));
-    setStep('s1','done'); log('Ficheiro pronto ✓','ok');
+    setStep('s1','done'); log('Lote pronto ✓','ok');
 
-    if (!url) {
-      await demoFlow(tipo, t0);
-    } else {
-      setStep('s2','active'); prog(25, 'A enviar para o Drive...');
-      log('A enviar para o GAS...');
-      const payload = { tipo, idioma, formato: fmtAtivo, arquivos };
-      const resp = await fetch(url, {
-        method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify(payload)
-      });
-      if (!resp.ok) throw new Error('HTTP '+resp.status);
-      let data;
-      try { data = await resp.json(); } catch(je) { throw new Error('Resposta inválida do GAS'); }
-      if (!data.ok) throw new Error(data.erro||'Erro no GAS');
+    setStep('s2','active'); prog(20, 'A enviar para o GAS / Drive...');
+    log('A enviar lote para processamento...');
 
-      setStep('s2','done'); log('Drive recebeu ✓','ok');
-      setStep('s3','active'); prog(65,'Gemini a digitalizar...');
-      log('Gemini processou o documento ✓','ok');
-      setStep('s3','done');
-      setStep('s4','active'); prog(85,'A gerar saída...');
-      log('Saída gerada ✓','ok');
-      setStep('s4','done'); prog(100,'Concluído!');
+    const payload = { idioma, arquivos };
+    const resp = await fetch(url, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
 
-      ocrResult = data.data;
-      mostrarResultado(data.data, Date.now()-t0);
-    }
+    setStep('s2','done'); log('Drive recebeu ✓','ok');
+    setStep('s3','active'); prog(45,'Gemini a extrair dados...');
+
+    let data;
+    try { data = await resp.json(); } catch(je) { throw new Error('Resposta inválida do GAS'); }
+    if (!data.ok) throw new Error(data.erro||'Erro no GAS');
+
+    setStep('s3','done'); log('Extracção concluída ✓','ok');
+    setStep('s4','active'); prog(70,'A identificar empresas / ramo de actividade...');
+    log('Perfis de empresa consultados/sugeridos ✓','ok');
+    setStep('s4','done');
+    setStep('s5','active'); prog(90,'A classificar contas PGC...');
+    log('Classificação PGC contextual concluída ✓','ok');
+    setStep('s5','done'); prog(100,'Concluído!');
+
+    resultado = data.data;
+    const nAmarelo = resultado.resumo ? resultado.resumo.aConfirmar : 0;
+    if (nAmarelo > 0) log(nAmarelo + ' item(ns) marcado(s) para confirmação','warn');
+
+    mostrarResultado(resultado, Date.now()-t0);
+
   } catch(e) {
     log('ERRO: '+e.message,'err'); toast('Erro: '+e.message,'err'); prog(0,'Erro');
   } finally {
@@ -602,111 +518,144 @@ async function iniciar() {
   }
 }
 
-async function demoFlow(tipo, t0) {
-  log('Modo demo (sem GAS) — a simular...','warn');
-  setStep('s2','active'); prog(30,'Simulando Drive...'); await delay(700);
-  setStep('s2','done'); setStep('s3','active'); prog(60,'Gemini a processar...');
-  log('Gemini: a analisar imagem do documento...'); await delay(900);
-  log('Gemini: campos extraídos com sucesso','ok'); await delay(500);
-  setStep('s3','done'); setStep('s4','active'); prog(85,'A gerar saída...');
-  await delay(400); setStep('s4','done'); prog(100,'Demo concluído!');
+// ── RESULTADO ──
+function mostrarResultado(data, ms) {
+  const r = data.resumo || { totalDocumentos:0, confiancaAlta:0, aConfirmar:0 };
 
-  const demoData = tipo === 'factura' ? {
-    campos: { data:'2025-05-14', fornecedor:'Distribuidora Central Lda', nif:'400123456', base:'85.000', taxa_iva:'17%', total_iva:'14.450', total:'99.450', moeda:'MZN', referencia:'FAT-2025-0341' },
-    texto_completo: 'FACTURA\nDistribuidora Central Lda\nNIF: 400123456\nData: 14/05/2025\nRef: FAT-2025-0341\n\nBase tributável: 85.000 MZN\nIVA (17%): 14.450 MZN\nTotal: 99.450 MZN',
-    confianca: 97,
-    docUrl: null, pdfUrl: null
-  } : {
-    campos: { tipo_doc: tipo, paginas: '1', idioma:'pt', caracteres_extraidos:'1.243', confianca:'94%' },
-    texto_completo: '[Conteúdo do documento seria extraído aqui pelo Gemini]',
-    confianca: 94,
-    docUrl: null, pdfUrl: null
-  };
+  document.getElementById('rk-total').textContent = r.totalDocumentos;
+  document.getElementById('rk-verde').textContent = r.confiancaAlta;
+  document.getElementById('rk-amarelo').textContent = r.aConfirmar;
+  document.getElementById('resumo-tempo').textContent = `Processado em ${(ms/1000).toFixed(1)}s`;
 
-  mostrarResultado(demoData, Date.now()-t0);
-}
-
-function mostrarResultado(raw, ms) {
-  // normaliza a estrutura independentemente de como o GAS devolve os dados
-  const data = (raw && raw.campos) ? raw : (raw && raw.data) ? raw.data : raw || {};
-  const campos        = data.campos        || {};
-  const textoCompleto = data.texto_completo || data.texto || '';
-  const confianca     = data.confianca      != null ? data.confianca : '—';
-
-  ocrResult = data;
-
-  document.getElementById('res-title').textContent = fmtAtivo === 'estruturado' ? 'Campos extraídos' : 'Documento digitalizado';
-  document.getElementById('res-sub').textContent = `Processado em ${(ms/1000).toFixed(1)}s · confiança ${confianca}%`;
-
-  const temCampos = Object.keys(campos).length > 0;
-
-  if (fmtAtivo === 'estruturado' && temCampos) {
-    document.getElementById('fields-section').style.display = '';
-    document.getElementById('text-section').style.display = 'none';
-    const grid = document.getElementById('fields-grid');
-    grid.innerHTML = '';
-    Object.entries(campos).forEach(([k,v]) => {
-      const d = document.createElement('div');
-      d.className = 'field-item';
-      const isValue = ['total','total_iva','base','valor'].some(x => k.includes(x));
-      d.innerHTML = `<div class="field-label">${k.replace(/_/g,' ')}</div><div class="field-value ${isValue?'highlight':''}">${v || '—'}</div>`;
-      grid.appendChild(d);
-    });
-    // se também tiver texto, mostra abaixo dos campos
-    if (textoCompleto) {
-      document.getElementById('text-section').style.display = '';
-      document.getElementById('result-text').textContent = textoCompleto;
-    }
+  const alerta = document.getElementById('alerta-perfis');
+  if (data.linkPerfis) {
+    alerta.classList.add('visible');
+    document.getElementById('link-perfis').href = data.linkPerfis;
   } else {
-    document.getElementById('fields-section').style.display = 'none';
-    document.getElementById('text-section').style.display = '';
-    document.getElementById('result-text').textContent = textoCompleto || JSON.stringify(data, null, 2) || '[Sem conteúdo]';
+    alerta.classList.remove('visible');
   }
+
+  filtroActivo = 'todos';
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.toggle('active', b.dataset.f === 'todos'));
+  renderDocList(data.documentos || []);
 
   document.getElementById('result-wrap').style.display = 'block';
   document.getElementById('result-wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-// ── DOWNLOADS ──
-function dlPDF() {
-  if (ocrResult && ocrResult.pdfUrl) { window.open(ocrResult.pdfUrl,'_blank'); return; }
-  const win = window.open('','_blank');
-  const emp = files[0]?.name || 'documento';
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>DocScan — ${emp}</title>
-  <style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#111}
-  h1{font-size:20px}table{width:100%;border-collapse:collapse;margin:16px 0}
-  th,td{border:1px solid #ccc;padding:8px 12px;text-align:left}th{background:#f0f0f0}
-  pre{background:#f9f9f9;padding:16px;border-radius:4px;white-space:pre-wrap;font-size:13px}
-  </style></head><body>
-  <h1>DocScan AI — Resultado</h1>
-  <p><b>Ficheiro:</b> ${emp} &nbsp; <b>Data:</b> ${new Date().toLocaleString('pt')}</p>
-  ${ocrResult?.campos ? '<h2>Campos extraídos</h2><table><tr><th>Campo</th><th>Valor</th></tr>' +
-    Object.entries(ocrResult.campos).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('') + '</table>' : ''}
-  ${ocrResult?.texto_completo ? '<h2>Texto completo</h2><pre>'+ocrResult.texto_completo+'</pre>' : ''}
-  </body></html>`);
-  win.document.close(); win.print();
+function renderDocList(docs) {
+  const list = document.getElementById('doc-list');
+  list.innerHTML = '';
+
+  const filtrados = filtroActivo === 'todos' ? docs : docs.filter(d => d.semaforo === filtroActivo);
+
+  if (filtrados.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3);font-family:var(--mono);font-size:12px">Nenhum documento nesta categoria</div>`;
+    return;
+  }
+
+  filtrados.forEach((d, i) => {
+    const card = document.createElement('div');
+    card.className = 'doc-card';
+    const confiancaClasse = d.confianca >= 80 ? 'alta' : 'baixa';
+    const ramoClasse = d.ramoConfirmado ? 'confirmado' : 'pendente';
+    const ramoIcone = d.ramoConfirmado ? 'ti-circle-check' : 'ti-clock-exclamation';
+    const ramoTexto = d.ramoConfirmado ? 'Ramo confirmado' : 'Ramo sugerido — a confirmar';
+
+    card.innerHTML = `
+      <div class="doc-row" onclick="toggleDoc(this)">
+        <span class="doc-sem ${d.semaforo}"></span>
+        <div class="doc-main">
+          <div class="doc-name">${d.empresa || d.fornecedor || d.documento}</div>
+          <div class="doc-sub">${d.descricaoOperacao || d.documento} · ${d.data || '—'}</div>
+        </div>
+        <div>
+          <div class="doc-valor">${fmtMzn(d.valor)}</div>
+          <div class="doc-conta">${d.contaPGC || '—'}</div>
+        </div>
+        <i class="ti ti-chevron-right doc-chevron"></i>
+      </div>
+      <div class="doc-detail">
+        <span class="ramo-tag ${ramoClasse}"><i class="ti ${ramoIcone}"></i> ${ramoTexto}: ${d.ramoActividade || '—'}</span>
+
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">Ficheiro</div><div class="detail-value">${d.documento}</div></div>
+          <div class="detail-item"><div class="detail-label">NIF</div><div class="detail-value">${d.nif || '—'}</div></div>
+          <div class="detail-item"><div class="detail-label">Fornecedor</div><div class="detail-value">${d.fornecedor || '—'}</div></div>
+          <div class="detail-item"><div class="detail-label">Data</div><div class="detail-value">${d.data || '—'}</div></div>
+          <div class="detail-item"><div class="detail-label">IVA (${d.taxaIva || 0}%)</div><div class="detail-value">${fmtMzn(d.valorIva)}</div></div>
+          <div class="detail-item"><div class="detail-label">Valor total</div><div class="detail-value">${fmtMzn(d.valor)}</div></div>
+        </div>
+
+        <div class="detail-pgc">
+          <div class="detail-pgc-head">
+            <span class="detail-pgc-conta">${d.contaPGC || '—'}</span>
+          </div>
+          <div class="detail-pgc-nome">${d.nomeContaPGC || '—'}</div>
+          <div class="detail-pgc-just">${d.justificacaoPGC || 'Sem justificação disponível.'}</div>
+        </div>
+
+        <div class="confianca-bar-wrap">
+          <div class="confianca-top"><span>Confiança da classificação</span><span>${d.confianca}%</span></div>
+          <div class="confianca-track"><div class="confianca-fill ${confiancaClasse}" style="width:${d.confianca}%"></div></div>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
 }
 
-function dlTXT() {
-  const texto = ocrResult?.texto_completo || (ocrResult?.campos ? Object.entries(ocrResult.campos).map(([k,v])=>`${k}: ${v}`).join('\n') : '');
-  if (!texto) { toast('Sem texto para exportar','warn'); return; }
+function toggleDoc(rowEl) {
+  rowEl.parentElement.classList.toggle('expanded');
+}
+
+function filtrar(f) {
+  filtroActivo = f;
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  if (resultado) renderDocList(resultado.documentos || []);
+}
+
+// ── EXPORTAR ──
+function exportarExcel() {
+  if (!resultado || !resultado.documentos || resultado.documentos.length === 0) {
+    toast('Sem dados para exportar','warn'); return;
+  }
+  const linhas = resultado.documentos.map(d => ({
+    'Ficheiro':              d.documento,
+    'Empresa':               d.empresa,
+    'NIF':                   d.nif,
+    'Ramo de Actividade':    d.ramoActividade,
+    'Ramo Confirmado':       d.ramoConfirmado ? 'Sim' : 'Não',
+    'Data':                  d.data,
+    'Fornecedor':            d.fornecedor,
+    'Descrição':             d.descricaoOperacao,
+    'Valor (MZN)':           d.valor,
+    'Taxa IVA (%)':          d.taxaIva,
+    'Valor IVA (MZN)':       d.valorIva,
+    'Conta PGC':             d.contaPGC,
+    'Nome da Conta':         d.nomeContaPGC,
+    'Justificação PGC':      d.justificacaoPGC,
+    'Confiança (%)':         d.confianca,
+    'Estado':                d.semaforo === 'verde' ? 'Confirmado' : 'A confirmar'
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = [
+    {wch:22},{wch:22},{wch:12},{wch:18},{wch:14},{wch:11},{wch:22},{wch:30},
+    {wch:13},{wch:11},{wch:13},{wch:10},{wch:26},{wch:40},{wch:11},{wch:12}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'DocScan');
+  XLSX.writeFile(wb, 'docscan_lote_' + Date.now() + '.xlsx');
+  toast('Excel gerado ✓');
+}
+
+function exportarJSON() {
+  if (!resultado) { toast('Sem dados para exportar','warn'); return; }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([texto], {type:'text/plain'}));
-  a.download = 'docscan_' + Date.now() + '.txt';
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(resultado, null, 2)], {type:'application/json'}));
+  a.download = 'docscan_lote_' + Date.now() + '.json';
   a.click();
-}
-
-function dlJSON() {
-  if (!ocrResult) { toast('Sem dados para exportar','warn'); return; }
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(ocrResult.campos || ocrResult, null, 2)], {type:'application/json'}));
-  a.download = 'docscan_' + Date.now() + '.json';
-  a.click();
-}
-
-function partilhar() {
-  if (navigator.share) navigator.share({title:'DocScan AI', url:location.href});
-  else { navigator.clipboard.writeText(location.href); toast('Link copiado!'); }
 }
 
 // ── HELPERS ──
@@ -735,7 +684,7 @@ function setBtnState(loading) {
   const btn=document.getElementById('btn-run');
   btn.disabled=loading;
   document.getElementById('run-icon').className=loading?'ti ti-loader spin':'ti ti-scan';
-  document.getElementById('run-label').textContent=loading?'A digitalizar...':'Digitalizar Documento';
+  document.getElementById('run-label').textContent=loading?'A processar lote...':'Processar Lote';
   if (!loading) checkReady();
 }
 function toast(msg,type='ok') {
@@ -744,7 +693,10 @@ function toast(msg,type='ok') {
   t.style.borderColor=type==='err'?'var(--red)':type==='warn'?'var(--amber)':'var(--cyan)';
   t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800);
 }
-function delay(ms){return new Promise(r=>setTimeout(r,ms))}
+function fmtMzn(v) {
+  if (v === undefined || v === null || v === '') return '—';
+  return Number(v).toLocaleString('pt-MZ',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' MZN';
+}
 </script>
 </body>
 </html>
