@@ -4,55 +4,32 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <meta name="theme-color" content="#080C14"/>
-<meta name="description" content="OCR e classificação contabilística em lote com IA"/>
-<title>DocScan AI</title>
+<title>DocScan AI v2</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
-:root {
-  --bg:        #080C14;
-  --bg2:       #0D1420;
-  --bg3:       #121B2E;
-  --surface:   #182236;
-  --border:    #1E2D45;
-  --border2:   #263650;
-  --blue:      #2D7DD2;
-  --blue2:     #1A5FA8;
-  --blue-dim:  #2D7DD220;
-  --blue-glow: #2D7DD240;
-  --cyan:      #00D4FF;
-  --amber:     #F5A623;
-  --amber-dim: #F5A62320;
-  --red:       #E84545;
-  --green:     #00C27A;
-  --green-dim: #00C27A20;
-  --text:      #D0E4F7;
-  --text2:     #6A8FAF;
-  --text3:     #364D66;
-  --mono:      'Space Mono', monospace;
-  --sans:      'Space Grotesk', sans-serif;
-  --r:         6px;
-  --r2:        12px;
-  --r3:        20px;
+:root{
+  --bg:#080C14;--bg2:#0D1420;--bg3:#121B2E;--surface:#182236;
+  --border:#1E2D45;--border2:#263650;
+  --blue:#2D7DD2;--blue2:#1A5FA8;--blue-dim:#2D7DD220;--blue-glow:#2D7DD240;
+  --cyan:#00D4FF;--amber:#F5A623;--amber-dim:#F5A62320;
+  --red:#E84545;--green:#00C27A;--green-dim:#00C27A20;
+  --text:#D0E4F7;--text2:#6A8FAF;--text3:#364D66;
+  --mono:'Space Mono',monospace;--sans:'Space Grotesk',sans-serif;
+  --r:6px;--r2:12px;--r3:20px;
 }
-
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100dvh;overflow-x:hidden}
-
-body::before{
-  content:'';position:fixed;inset:0;
-  background-image:radial-gradient(circle at 20% 20%, #2D7DD210 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, #00D4FF08 0%, transparent 50%);
-  pointer-events:none;z-index:0;
-}
-
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 20% 20%,#2D7DD210 0%,transparent 50%),radial-gradient(circle at 80% 80%,#00D4FF08 0%,transparent 50%);pointer-events:none;z-index:0}
 .app{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:24px 20px 80px}
 
-.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;gap:12px;flex-wrap:wrap}
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:12px;flex-wrap:wrap}
 .hdr-left{display:flex;align-items:center;gap:14px}
 .logo{width:44px;height:44px;border-radius:var(--r2);background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;box-shadow:0 0 24px var(--blue-glow);flex-shrink:0}
 .brand-name{font-size:18px;font-weight:700;letter-spacing:-.3px;color:var(--text)}
@@ -61,14 +38,39 @@ body::before{
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
+/* SECTION LABEL */
 .slabel{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--blue);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .slabel::after{content:'';flex:1;height:1px;background:var(--border)}
 
+/* CARD */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r3);padding:20px;margin-bottom:12px;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--blue-dim),transparent)}
 
-/* ── DROP ZONE ── */
-.drop{border:1.5px dashed var(--border2);border-radius:var(--r2);padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+/* MODO SWITCH A/B */
+.modo-switch{display:flex;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:4px;gap:4px;margin-bottom:18px}
+.modo-btn{flex:1;padding:10px 8px;border:none;border-radius:var(--r);background:none;color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s}
+.modo-btn.active{background:var(--blue);color:#fff;box-shadow:0 2px 12px var(--blue-glow)}
+.modo-btn i{font-size:16px}
+.modo-desc{font-size:12px;color:var(--text3);font-family:var(--mono);text-align:center;margin-bottom:12px;min-height:18px}
+
+/* PAINEL MODO A: selector de empresa */
+.empresa-panel{display:none;margin-bottom:14px}
+.empresa-panel.visible{display:block}
+.empresa-row{display:flex;gap:8px}
+.empresa-row input{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--sans);font-size:13px;padding:10px 12px;outline:none;transition:border .15s}
+.empresa-row input:focus{border-color:var(--blue)}
+.empresa-row input::placeholder{color:var(--text3)}
+.empresa-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.empresa-chip{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:border-color .15s}
+.empresa-chip:hover{border-color:var(--blue)}
+.empresa-chip.selected{border-color:var(--cyan);background:var(--blue-dim)}
+.empresa-chip-name{font-size:12px;font-weight:600;color:var(--text)}
+.empresa-chip-ramo{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.empresa-chip-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);flex-shrink:0}
+.empresa-chip.selected .empresa-chip-dot{background:var(--cyan)}
+
+/* DROP ZONE */
+.drop{border:1.5px dashed var(--border2);border-radius:var(--r2);padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s}
 .drop:hover,.drop.over{border-color:var(--blue);background:var(--blue-dim)}
 .drop-icon{font-size:36px;color:var(--text3);margin-bottom:10px;display:block;transition:color .2s}
 .drop:hover .drop-icon,.drop.over .drop-icon{color:var(--blue)}
@@ -78,18 +80,29 @@ body::before{
 .dtag{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--border2);color:var(--text3)}
 #fi{display:none}
 
-/* ── COUNTER / LIMITE ── */
-.vol-bar{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono);font-size:12px}
+/* SPLIT MODAL */
+.split-modal{display:none;position:fixed;inset:0;background:#00000088;z-index:100;align-items:center;justify-content:center}
+.split-modal.visible{display:flex}
+.split-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r3);padding:24px;width:min(480px,90vw)}
+.split-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px}
+.split-sub{font-size:12px;color:var(--text2);font-family:var(--mono);margin-bottom:18px}
+.split-file{font-size:12px;color:var(--cyan);font-family:var(--mono);margin-bottom:18px;padding:8px 12px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)}
+.split-opts{display:flex;flex-direction:column;gap:8px}
+.split-opt{padding:14px 16px;border-radius:var(--r2);border:1px solid var(--border2);cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:12px}
+.split-opt:hover{border-color:var(--blue)}
+.split-opt i{font-size:20px;color:var(--blue);flex-shrink:0;margin-top:2px}
+.split-opt-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px}
+.split-opt-desc{font-size:12px;color:var(--text2)}
+
+/* VOL BAR */
+.vol-bar{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-family:var(--mono);font-size:12px;display:none}
+.vol-bar.visible{display:flex}
 .vol-bar.warn{border-color:var(--amber);background:var(--amber-dim)}
-.vol-bar.over{border-color:var(--red);background:#E8454520}
-.vol-count{color:var(--text)}
 .vol-count b{color:var(--cyan)}
 .vol-bar.warn .vol-count b{color:var(--amber)}
-.vol-bar.over .vol-count b{color:var(--red)}
-.vol-lotes{color:var(--text3)}
 
-/* ── FILE LIST ── */
-.flist{margin-top:14px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+/* FILE LIST */
+.flist{margin-top:14px;display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
 .flist::-webkit-scrollbar{width:4px}
 .flist::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .fitem{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);animation:fadeIn .2s ease}
@@ -99,11 +112,12 @@ body::before{
 .fitem-meta{font-family:var(--mono);font-size:11px;color:var(--text3);flex-shrink:0}
 .fitem-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;padding:2px;border-radius:4px;flex-shrink:0}
 .fitem-rm:hover{color:var(--red);background:#e8454520}
-.flist-actions{display:flex;justify-content:flex-end;margin-top:8px}
+.flist-clear{display:none;justify-content:flex-end;margin-top:6px}
+.flist-clear.visible{display:flex}
 .btn-clear{background:none;border:none;color:var(--text3);font-family:var(--mono);font-size:11px;cursor:pointer;padding:4px 8px}
 .btn-clear:hover{color:var(--red)}
 
-/* ── CONFIG ── */
+/* CONFIG */
 .cfg-field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
 .cfg-field label{font-family:var(--mono);font-size:11px;color:var(--text2)}
 .cfg-field input,.cfg-field select{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;outline:none;transition:border .15s;width:100%}
@@ -114,7 +128,7 @@ body::before{
 .btn-test{font-family:var(--mono);font-size:11px;padding:9px 14px;border-radius:var(--r);border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .15s}
 .btn-test:hover{border-color:var(--blue);color:var(--blue)}
 
-/* ── STEPS ── */
+/* STEPS */
 .steps{display:flex;align-items:flex-start;gap:0;margin-bottom:16px}
 .step{flex:1;text-align:center;position:relative}
 .step+.step::before{content:'';position:absolute;top:15px;right:50%;left:-50%;height:1px;background:var(--border2);z-index:0}
@@ -126,45 +140,35 @@ body::before{
 .slbl{font-family:var(--mono);font-size:10px;color:var(--text3)}
 .step.active .slbl{color:var(--blue)}
 .step.done .slbl{color:var(--text2)}
-
 .pbar-wrap{display:none}
 .pbar-top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:6px}
 .pbar{height:3px;background:var(--border);border-radius:99px;overflow:hidden}
 .pfill{height:100%;background:linear-gradient(90deg,var(--blue2),var(--cyan));border-radius:99px;width:0%;transition:width .5s ease}
-
 .logbox{display:none;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;max-height:110px;overflow-y:auto;font-family:var(--mono);font-size:11px;color:var(--text3)}
 .logbox::-webkit-scrollbar{width:4px}
 .logbox::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 .log-line{margin-bottom:3px;line-height:1.5}
-.log-ok{color:var(--green)}
-.log-err{color:var(--red)}
-.log-warn{color:var(--amber)}
+.log-ok{color:var(--green)}.log-err{color:var(--red)}.log-warn{color:var(--amber)}
 
-/* ── BTN PRIMARY ── */
-.btn-run{width:100%;padding:15px;border:none;border-radius:var(--r2);background:var(--blue);color:#fff;font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:.02em;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;box-shadow:0 4px 24px var(--blue-glow);margin-bottom:12px}
+/* BTN RUN */
+.btn-run{width:100%;padding:15px;border:none;border-radius:var(--r2);background:var(--blue);color:#fff;font-family:var(--sans);font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;box-shadow:0 4px 24px var(--blue-glow);margin-bottom:12px}
 .btn-run:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 32px var(--blue-glow)}
 .btn-run:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 .spin{animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── RESULTADO ── */
+/* RESULTADO */
 .result-wrap{display:none;animation:fadeIn .4s ease}
-
 .resumo-card{background:linear-gradient(135deg,#091428,#0D1E3A);border:1px solid #1A3A6A;border-radius:var(--r3);padding:20px;margin-bottom:12px}
 .resumo-top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
 .resumo-icon{font-size:26px;color:var(--cyan)}
 .resumo-title{font-size:16px;font-weight:700;color:var(--text)}
 .resumo-sub{font-family:var(--mono);font-size:11px;color:var(--cyan);margin-top:2px}
-
 .resumo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .rk{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:14px 10px;text-align:center}
 .rk-val{font-size:24px;font-weight:800;line-height:1}
-.rk-val.b{color:var(--cyan)}
-.rk-val.g{color:var(--green)}
-.rk-val.a{color:var(--amber)}
+.rk-val.b{color:var(--cyan)}.rk-val.g{color:var(--green)}.rk-val.a{color:var(--amber)}
 .rk-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.06em}
-
-/* ── ALERTA LINK SHEET (condicional) ── */
 .alerta-perfis{display:none;margin-top:14px;padding:13px 16px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:var(--r2);align-items:center;gap:12px}
 .alerta-perfis.visible{display:flex}
 .alerta-perfis i{font-size:20px;color:var(--amber);flex-shrink:0}
@@ -173,230 +177,326 @@ body::before{
 .alerta-perfis a{color:var(--cyan);font-weight:600;text-decoration:none;white-space:nowrap;font-family:var(--mono);font-size:12px}
 .alerta-perfis a:hover{text-decoration:underline}
 
-/* ── FILTROS ── */
+/* FILTROS */
 .filtros{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .filtro-btn{font-family:var(--mono);font-size:11px;padding:7px 13px;border-radius:99px;border:1px solid var(--border2);background:none;color:var(--text2);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
-.filtro-btn:hover{border-color:var(--text2)}
 .filtro-btn.active{border-color:var(--blue);background:var(--blue-dim);color:var(--cyan)}
 .filtro-dot{width:7px;height:7px;border-radius:50%}
-.filtro-dot.todos{background:var(--text3)}
-.filtro-dot.verde{background:var(--green)}
-.filtro-dot.amarelo{background:var(--amber)}
+.filtro-dot.verde{background:var(--green)}.filtro-dot.amarelo{background:var(--amber)}.filtro-dot.todos{background:var(--text3)}
 
-/* ── LISTA DE DOCUMENTOS ── */
+/* DOC CARDS */
 .doc-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .doc-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;cursor:pointer;transition:border-color .15s}
 .doc-card:hover{border-color:var(--border2)}
 .doc-card.expanded{border-color:var(--blue)}
-
 .doc-row{display:flex;align-items:center;gap:12px}
 .doc-sem{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .doc-sem.verde{background:var(--green);box-shadow:0 0 8px var(--green)}
 .doc-sem.amarelo{background:var(--amber);box-shadow:0 0 8px var(--amber)}
-
 .doc-main{flex:1;min-width:0}
 .doc-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .doc-sub{font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
 .doc-valor{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text);text-align:right;flex-shrink:0}
 .doc-conta{font-family:var(--mono);font-size:10px;color:var(--cyan);text-align:right;margin-top:2px}
-
 .doc-chevron{color:var(--text3);font-size:16px;transition:transform .2s;flex-shrink:0}
 .doc-card.expanded .doc-chevron{transform:rotate(90deg);color:var(--blue)}
-
 .doc-detail{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
 .doc-card.expanded .doc-detail{display:block;animation:fadeIn .2s ease}
-
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .detail-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:9px 11px}
 .detail-label{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
 .detail-value{font-size:13px;color:var(--text);font-weight:500}
-
 .detail-pgc{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:12px;margin-bottom:10px}
-.detail-pgc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .detail-pgc-conta{font-family:var(--mono);font-size:13px;color:var(--cyan);font-weight:700}
 .detail-pgc-nome{font-size:12px;color:var(--text2);margin-top:2px}
 .detail-pgc-just{font-size:12px;color:var(--text2);line-height:1.5;font-style:italic;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)}
-
 .ramo-tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:99px;margin-bottom:10px}
 .ramo-tag.confirmado{background:var(--green-dim);color:var(--green);border:1px solid var(--green)}
 .ramo-tag.pendente{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)}
-
 .confianca-bar-wrap{margin-top:4px}
 .confianca-top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px}
 .confianca-track{height:4px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--border)}
 .confianca-fill{height:100%;border-radius:99px;transition:width .4s ease}
-.confianca-fill.alta{background:var(--green)}
-.confianca-fill.baixa{background:var(--amber)}
+.confianca-fill.alta{background:var(--green)}.confianca-fill.baixa{background:var(--amber)}
 
-/* ── EXPORT ── */
+/* EXPORT */
+.export-tabs{display:flex;gap:4px;margin-bottom:10px;background:var(--bg3);border-radius:var(--r2);padding:4px}
+.export-tab{flex:1;padding:8px;border:none;border-radius:var(--r);background:none;color:var(--text2);font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.export-tab.active{background:var(--blue);color:#fff}
+.export-panel{display:none}.export-panel.active{display:block}
 .dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .btn-dl{padding:13px;border-radius:var(--r);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s}
 .btn-dl-main{background:var(--green);color:#04231a;border:none}
 .btn-dl-main:hover{filter:brightness(1.08)}
 .btn-dl-sec{background:none;color:var(--text2);border:1px solid var(--border2)}
 .btn-dl-sec:hover{border-color:var(--blue);color:var(--blue)}
+.btn-dl-full{width:100%;margin-top:8px}
+.balancete-aviso{font-size:11px;font-family:var(--mono);color:var(--text3);padding:10px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);margin-top:8px;display:none}
+.balancete-aviso.visible{display:block}
 
-/* ── TOAST ── */
+/* TOAST */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border2);border-radius:99px;padding:10px 20px;font-family:var(--mono);font-size:13px;color:var(--text);box-shadow:0 8px 32px #0008;white-space:nowrap;z-index:999;transition:transform .3s ease}
 .toast.show{transform:translateX(-50%) translateY(0)}
 
 @media(max-width:500px){
   .detail-grid{grid-template-columns:1fr}
   .resumo-grid{grid-template-columns:repeat(3,1fr)}
-  .doc-valor{font-size:13px}
+  .dl-grid{grid-template-columns:1fr}
+  .export-tab span{display:none}
 }
 </style>
 </head>
 <body>
 <div class="app">
 
-  <header class="hdr">
-    <div class="hdr-left">
-      <div class="logo"><i class="ti ti-stack-2"></i></div>
-      <div class="brand">
-        <div class="brand-name">DocScan AI</div>
-        <div class="brand-tag">v2.0 · Lote + PGC contextual</div>
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="logo"><i class="ti ti-stack-2"></i></div>
+    <div>
+      <div class="brand-name">DocScan AI</div>
+      <div class="brand-tag">v2.0 · Fixer OS</div>
+    </div>
+  </div>
+  <div class="hdr-pill"><span class="live-dot"></span> GAS + Gemini</div>
+</header>
+
+<!-- STEP 1: MODO A / B + DOCUMENTOS -->
+<div class="slabel">01 — Fluxo de trabalho</div>
+<div class="card">
+
+  <div class="modo-switch">
+    <button class="modo-btn" id="btn-modo-a" onclick="setModo('A')">
+      <i class="ti ti-building-community"></i> A — por cliente
+    </button>
+    <button class="modo-btn active" id="btn-modo-b" onclick="setModo('B')">
+      <i class="ti ti-folder-open"></i> B — por pasta
+    </button>
+  </div>
+  <div class="modo-desc" id="modo-desc">Sobe a pasta — o sistema identifica a empresa pelos NIFs nos documentos</div>
+
+  <!-- PAINEL MODO A -->
+  <div class="empresa-panel" id="empresa-panel">
+    <div class="empresa-row">
+      <input id="emp-nome" type="text" placeholder="Nome da empresa cliente"/>
+      <input id="emp-nif" type="text" maxlength="9" placeholder="NIF (9 dígitos)"/>
+    </div>
+    <div class="empresa-row" style="margin-top:8px">
+      <input id="emp-ramo" type="text" placeholder="Ramo de actividade (ex: Restauração, AVAC, Comércio...)"/>
+    </div>
+    <div id="empresa-chips" class="empresa-grid" style="margin-top:10px"></div>
+  </div>
+
+  <!-- DROP ZONE -->
+  <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
+    <i class="ti ti-folder-up drop-icon"></i>
+    <div class="drop-main">Solta os documentos ou clica para seleccionar</div>
+    <div class="drop-sub">Facturas, recibos, extractos — até 100+ documentos em lote</div>
+    <div class="drop-tags">
+      <span class="dtag">PDF</span><span class="dtag">JPG</span><span class="dtag">PNG</span>
+      <span class="dtag">CSV</span><span class="dtag">XLSX</span>
+    </div>
+  </div>
+  <input type="file" id="fi" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.xlsx,.txt" onchange="onFiles(this.files)"/>
+
+  <div class="vol-bar" id="vol-bar">
+    <span class="vol-count"><b id="vol-n">0</b> ficheiro(s) | <span id="vol-pages">—</span> páginas totais</span>
+    <span style="font-family:var(--mono);font-size:11px;color:var(--text3)" id="vol-lotes"></span>
+  </div>
+
+  <div class="flist" id="flist"></div>
+  <div class="flist-clear" id="flist-clear">
+    <button class="btn-clear" onclick="limparTudo()"><i class="ti ti-trash"></i> Limpar tudo</button>
+  </div>
+</div>
+
+<!-- STEP 2: CONFIGURAÇÃO -->
+<div class="slabel">02 — Configuração</div>
+<div class="card">
+  <div class="cfg-field">
+    <label>Idioma dos documentos</label>
+    <select id="idioma">
+      <option value="pt-mz">Português (Moçambique)</option>
+      <option value="pt">Português</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+  <div class="cfg-field">
+    <label>URL do Google Apps Script</label>
+    <div class="webhook-row">
+      <input id="gas-url" type="url" placeholder="https://script.google.com/macros/s/.../exec"/>
+      <button class="btn-test" onclick="testarGAS()"><i class="ti ti-plug"></i> Testar</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3: PROCESSAMENTO -->
+<div class="slabel">03 — Processamento</div>
+<div class="card">
+  <div class="steps">
+    <div class="step" id="s1"><div class="sdot"><i class="ti ti-folder"></i></div><div class="slbl">Preparar</div></div>
+    <div class="step" id="s2"><div class="sdot"><i class="ti ti-brand-google-drive"></i></div><div class="slbl">Drive</div></div>
+    <div class="step" id="s3"><div class="sdot"><i class="ti ti-sparkles"></i></div><div class="slbl">OCR</div></div>
+    <div class="step" id="s4"><div class="sdot"><i class="ti ti-building"></i></div><div class="slbl">Empresa</div></div>
+    <div class="step" id="s5"><div class="sdot"><i class="ti ti-list-check"></i></div><div class="slbl">PGC</div></div>
+  </div>
+  <div class="pbar-wrap" id="pbar-wrap">
+    <div class="pbar-top"><span id="pbar-label">Aguardando...</span><span id="pbar-pct">0%</span></div>
+    <div class="pbar"><div class="pfill" id="pfill"></div></div>
+  </div>
+  <div class="logbox" id="logbox"></div>
+</div>
+
+<button class="btn-run" id="btn-run" onclick="iniciar()" disabled>
+  <i class="ti ti-scan" id="run-icon"></i>
+  <span id="run-label">Processar Lote</span>
+</button>
+
+<!-- RESULTADO -->
+<div class="result-wrap" id="result-wrap">
+  <div class="slabel">04 — Resultado</div>
+
+  <div class="resumo-card">
+    <div class="resumo-top">
+      <i class="ti ti-circle-check resumo-icon"></i>
+      <div>
+        <div class="resumo-title" id="resumo-title">Lote processado</div>
+        <div class="resumo-sub" id="resumo-tempo">—</div>
       </div>
     </div>
-    <div class="hdr-pill"><span class="live-dot"></span> GAS + Gemini</div>
-  </header>
-
-  <!-- STEP 1: LOTE DE DOCUMENTOS -->
-  <div class="slabel">01 — Pasta de documentos</div>
-  <div class="card">
-    <div class="drop" id="dz" onclick="document.getElementById('fi').click()">
-      <i class="ti ti-folder-up drop-icon"></i>
-      <div class="drop-main">Solta a pasta inteira ou selecciona vários ficheiros</div>
-      <div class="drop-sub">Facturas, recibos, extractos — até 100+ documentos numa operação</div>
-      <div class="drop-tags">
-        <span class="dtag">PDF</span>
-        <span class="dtag">JPG</span>
-        <span class="dtag">PNG</span>
-        <span class="dtag">CSV</span>
-        <span class="dtag">XLSX</span>
+    <div class="resumo-grid">
+      <div class="rk"><div class="rk-val b" id="rk-total">0</div><div class="rk-lbl">Documentos</div></div>
+      <div class="rk"><div class="rk-val g" id="rk-verde">0</div><div class="rk-lbl">Confirmados</div></div>
+      <div class="rk"><div class="rk-val a" id="rk-amarelo">0</div><div class="rk-lbl">A confirmar</div></div>
+    </div>
+    <div class="alerta-perfis" id="alerta-perfis">
+      <i class="ti ti-alert-triangle"></i>
+      <div class="alerta-perfis-text">
+        Há itens com <b>ramo de actividade ou classificação por confirmar</b>. Confirma na Sheet de perfis — fica válido para todos os próximos documentos dessa empresa.
       </div>
-    </div>
-    <input type="file" id="fi" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.xlsx,.txt" onchange="onFiles(this.files)"/>
-
-    <div class="vol-bar" id="vol-bar" style="display:none">
-      <span class="vol-count"><b id="vol-n">0</b> documento(s) seleccionado(s)</span>
-      <span class="vol-lotes" id="vol-lotes"></span>
-    </div>
-
-    <div class="flist" id="flist"></div>
-    <div class="flist-actions" id="flist-actions" style="display:none">
-      <button class="btn-clear" onclick="limparTudo()"><i class="ti ti-trash"></i> Limpar tudo</button>
+      <a id="link-perfis" href="#" target="_blank">Abrir Sheet →</a>
     </div>
   </div>
 
-  <!-- STEP 2: CONFIGURAÇÃO -->
-  <div class="slabel">02 — Configuração</div>
-  <div class="card">
-    <div class="cfg-field">
-      <label>Idioma dos documentos</label>
-      <select id="idioma">
-        <option value="pt">Português</option>
-        <option value="pt-mz">Português (Moçambique)</option>
-        <option value="en">English</option>
-      </select>
-    </div>
-    <div class="cfg-field">
-      <label>URL do Google Apps Script</label>
-      <div class="webhook-row">
-        <input id="gas-url" type="url" placeholder="https://script.google.com/macros/s/.../exec"/>
-        <button class="btn-test" onclick="testarGAS()"><i class="ti ti-plug"></i> Testar</button>
-      </div>
-    </div>
+  <div class="filtros">
+    <button class="filtro-btn active" data-f="todos" onclick="filtrar('todos')"><span class="filtro-dot todos"></span> Todos</button>
+    <button class="filtro-btn" data-f="verde" onclick="filtrar('verde')"><span class="filtro-dot verde"></span> Confirmados</button>
+    <button class="filtro-btn" data-f="amarelo" onclick="filtrar('amarelo')"><span class="filtro-dot amarelo"></span> A confirmar</button>
   </div>
 
-  <!-- STEP 3: PROCESSAMENTO -->
-  <div class="slabel">03 — Processamento</div>
-  <div class="card">
-    <div class="steps">
-      <div class="step" id="s1"><div class="sdot"><i class="ti ti-folder"></i></div><div class="slbl">Lote</div></div>
-      <div class="step" id="s2"><div class="sdot"><i class="ti ti-brand-google-drive"></i></div><div class="slbl">Drive</div></div>
-      <div class="step" id="s3"><div class="sdot"><i class="ti ti-sparkles"></i></div><div class="slbl">Extracção</div></div>
-      <div class="step" id="s4"><div class="sdot"><i class="ti ti-building"></i></div><div class="slbl">Empresa</div></div>
-      <div class="step" id="s5"><div class="sdot"><i class="ti ti-list-check"></i></div><div class="slbl">PGC</div></div>
-    </div>
-    <div class="pbar-wrap" id="pbar-wrap">
-      <div class="pbar-top"><span id="pbar-label">Aguardando...</span><span id="pbar-pct">0%</span></div>
-      <div class="pbar"><div class="pfill" id="pfill"></div></div>
-    </div>
-    <div class="logbox" id="logbox"></div>
+  <div class="doc-list" id="doc-list"></div>
+
+  <!-- EXPORT TABS -->
+  <div class="export-tabs">
+    <button class="export-tab active" id="tab-lancamentos" onclick="setExportTab('lancamentos')">
+      <i class="ti ti-file-spreadsheet"></i> <span>Lançamentos</span>
+    </button>
+    <button class="export-tab" id="tab-balancete" onclick="setExportTab('balancete')">
+      <i class="ti ti-chart-bar"></i> <span>Balancete</span>
+    </button>
   </div>
 
-  <button class="btn-run" id="btn-run" onclick="iniciar()" disabled>
-    <i class="ti ti-scan" id="run-icon"></i>
-    <span id="run-label">Processar Lote</span>
-  </button>
-
-  <!-- RESULTADO -->
-  <div class="result-wrap" id="result-wrap">
-    <div class="slabel">04 — Resultado</div>
-
-    <div class="resumo-card">
-      <div class="resumo-top">
-        <i class="ti ti-circle-check resumo-icon"></i>
-        <div>
-          <div class="resumo-title">Lote processado</div>
-          <div class="resumo-sub" id="resumo-tempo">—</div>
-        </div>
-      </div>
-      <div class="resumo-grid">
-        <div class="rk"><div class="rk-val b" id="rk-total">0</div><div class="rk-lbl">Documentos</div></div>
-        <div class="rk"><div class="rk-val g" id="rk-verde">0</div><div class="rk-lbl">Confirmados</div></div>
-        <div class="rk"><div class="rk-val a" id="rk-amarelo">0</div><div class="rk-lbl">A confirmar</div></div>
-      </div>
-
-      <div class="alerta-perfis" id="alerta-perfis">
-        <i class="ti ti-alert-triangle"></i>
-        <div class="alerta-perfis-text">
-          Há itens com <b>ramo de actividade ou classificação por confirmar</b>. Revê e confirma na Sheet de perfis — fica válido para todos os próximos documentos desta empresa.
-        </div>
-        <a id="link-perfis" href="#" target="_blank">Abrir Sheet →</a>
-      </div>
-    </div>
-
-    <div class="filtros">
-      <button class="filtro-btn active" data-f="todos" onclick="filtrar('todos')">
-        <span class="filtro-dot todos"></span> Todos
-      </button>
-      <button class="filtro-btn" data-f="verde" onclick="filtrar('verde')">
-        <span class="filtro-dot verde"></span> Confirmados
-      </button>
-      <button class="filtro-btn" data-f="amarelo" onclick="filtrar('amarelo')">
-        <span class="filtro-dot amarelo"></span> A confirmar
-      </button>
-    </div>
-
-    <div class="doc-list" id="doc-list"></div>
-
+  <div class="export-panel active" id="panel-lancamentos">
     <div class="dl-grid">
-      <button class="btn-dl btn-dl-main" onclick="exportarExcel()"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</button>
-      <button class="btn-dl btn-dl-sec" onclick="exportarJSON()"><i class="ti ti-braces"></i> Exportar JSON</button>
+      <button class="btn-dl btn-dl-main" onclick="exportarLancamentosExcel()"><i class="ti ti-file-spreadsheet"></i> Excel — lançamentos</button>
+      <button class="btn-dl btn-dl-sec" onclick="exportarJSON()"><i class="ti ti-braces"></i> JSON bruto</button>
+    </div>
+    <div style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-top:8px;padding:10px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border)">
+      Uma linha por documento · pronto para importação no Primavera com template do cliente
     </div>
   </div>
 
+  <div class="export-panel" id="panel-balancete">
+    <button class="btn-dl btn-dl-main btn-dl-full" onclick="exportarBalanceteExcel()"><i class="ti ti-chart-bar"></i> Excel — balancete por conta PGC</button>
+    <div class="balancete-aviso visible" id="balancete-aviso">
+      Agrupa os lançamentos por conta PGC e soma os valores. Inclui apenas documentos 🟢 confirmados — os 🟡 amarelos aparecem numa aba separada "A confirmar".
+    </div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<!-- SPLIT MODAL -->
+<div class="split-modal" id="split-modal">
+  <div class="split-box">
+    <div class="split-title">PDF com várias páginas detectado</div>
+    <div class="split-sub">Como devo processar este ficheiro?</div>
+    <div class="split-file" id="split-filename"></div>
+    <div class="split-opts">
+      <div class="split-opt" onclick="resolverSplit('separar')">
+        <i class="ti ti-cut"></i>
+        <div>
+          <div class="split-opt-title">Separar por página (recomendado)</div>
+          <div class="split-opt-desc">Várias facturas digitalizadas em sequência — cada página é um documento diferente. Mais fiável.</div>
+        </div>
+      </div>
+      <div class="split-opt" onclick="resolverSplit('inteiro')">
+        <i class="ti ti-file-text"></i>
+        <div>
+          <div class="split-opt-title">Processar como um só documento</div>
+          <div class="split-opt-desc">É um único documento com várias páginas (ex: contrato, relatório). O sistema detecta automaticamente.</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
 // ── STATE ──
-let files = [];
+let files = [];         // lista final de ficheiros (após split se necessário)
+let rawFiles = [];      // ficheiros originais antes de split
 let resultado = null;
 let filtroActivo = 'todos';
+let modoActivo = 'B';
+let empresasCache = [];  // perfis conhecidos carregados da sheet (modo A)
+const TAMANHO_LOTE = 8;
 const GAS_KEY = 'docscan_gas_url';
-const TAMANHO_LOTE = 8; // espelha CONFIG.TAMANHO_LOTE do Code_v2.gs — só para estimar nº de chamadas no UI
 
-// ── INIT ──
+// Split: fila de ficheiros PDF multi-página a resolver
+let splitQueue = [];
+let splitResolve = null;
+
 window.addEventListener('load', () => {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('ocr_sw.js').catch(()=>{});
   const saved = localStorage.getItem(GAS_KEY);
   if (saved) document.getElementById('gas-url').value = saved;
+  setModo('B');
 });
+
+// ── MODO A / B ──
+function setModo(modo) {
+  modoActivo = modo;
+  document.getElementById('btn-modo-a').classList.toggle('active', modo === 'A');
+  document.getElementById('btn-modo-b').classList.toggle('active', modo === 'B');
+  document.getElementById('empresa-panel').classList.toggle('visible', modo === 'A');
+  document.getElementById('modo-desc').textContent = modo === 'A'
+    ? 'Selecciona o cliente primeiro — o sistema já sabe o ramo de actividade'
+    : 'Sobe a pasta — o sistema identifica a empresa pelos NIFs nos documentos';
+  checkReady();
+}
+
+// ── CHIPS EMPRESA (Modo A — carregados da Sheet quando possível) ──
+function renderEmpresaChips(lista) {
+  const el = document.getElementById('empresa-chips');
+  el.innerHTML = '';
+  lista.forEach(function(e, i) {
+    const d = document.createElement('div');
+    d.className = 'empresa-chip';
+    d.innerHTML = `<div><div class="empresa-chip-name">${e.nome}</div><div class="empresa-chip-ramo">${e.ramo}</div></div><div class="empresa-chip-dot"></div>`;
+    d.onclick = function() {
+      document.querySelectorAll('.empresa-chip').forEach(c => c.classList.remove('selected'));
+      d.classList.add('selected');
+      document.getElementById('emp-nome').value = e.nome;
+      document.getElementById('emp-nif').value = e.nif;
+      document.getElementById('emp-ramo').value = e.ramo;
+      checkReady();
+    };
+    el.appendChild(d);
+  });
+}
 
 // ── DROP ZONE ──
 const dz = document.getElementById('dz');
@@ -404,46 +504,119 @@ dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('ove
 dz.addEventListener('dragleave', () => dz.classList.remove('over'));
 dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); onFiles(e.dataTransfer.files); });
 
-function onFiles(newFiles) {
-  [...newFiles].forEach(f => files.push(f));
+async function onFiles(newFiles) {
+  const arr = [...newFiles];
+  // Verificar PDFs com múltiplas páginas e perguntar ao utilizador
+  for (const f of arr) {
+    if (f.type === 'application/pdf') {
+      const nPages = await contarPaginasPDF(f);
+      if (nPages > 1) {
+        const decisao = await perguntarSplit(f.name, nPages);
+        if (decisao === 'separar') {
+          const paginas = await splitPDF(f);
+          paginas.forEach(p => files.push(p));
+        } else {
+          files.push(f);
+        }
+      } else {
+        files.push(f);
+      }
+    } else {
+      files.push(f);
+    }
+  }
   renderFiles();
   checkReady();
+}
+
+async function contarPaginasPDF(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    return pdf.numPages;
+  } catch(e) {
+    return 1;
+  }
+}
+
+function perguntarSplit(nome, nPages) {
+  return new Promise(resolve => {
+    document.getElementById('split-filename').textContent = nome + '  (' + nPages + ' páginas)';
+    document.getElementById('split-modal').classList.add('visible');
+    splitResolve = resolve;
+  });
+}
+
+function resolverSplit(decisao) {
+  document.getElementById('split-modal').classList.remove('visible');
+  if (splitResolve) { splitResolve(decisao); splitResolve = null; }
+}
+
+async function splitPDF(file) {
+  log('A separar "' + file.name + '" em páginas individuais...', 'warn');
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const paginas = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+    const nomePag = file.name.replace(/\.pdf$/i, '') + '_p' + String(i).padStart(2,'0') + '.jpg';
+    paginas.push(new File([blob], nomePag, { type: 'image/jpeg' }));
+  }
+  log('Separado em ' + paginas.length + ' página(s) ✓', 'ok');
+  return paginas;
 }
 
 function renderFiles() {
   const list = document.getElementById('flist');
   const volBar = document.getElementById('vol-bar');
-  const actions = document.getElementById('flist-actions');
+  const clear = document.getElementById('flist-clear');
   list.innerHTML = '';
-
   files.forEach((f, i) => {
     const ext = f.name.split('.').pop().toUpperCase();
     const sz = f.size > 1048576 ? (f.size/1048576).toFixed(1)+'MB' : Math.round(f.size/1024)+'KB';
-    const ico = ['PDF'].includes(ext) ? 'ti-file-type-pdf' : ['JPG','JPEG','PNG','WEBP'].includes(ext) ? 'ti-photo' : ['XLSX','CSV'].includes(ext) ? 'ti-file-spreadsheet' : 'ti-file';
+    const ico = ext==='PDF' ? 'ti-file-type-pdf' : ['JPG','JPEG','PNG','WEBP'].includes(ext) ? 'ti-photo' : ['XLSX','CSV'].includes(ext) ? 'ti-file-spreadsheet' : 'ti-file';
     const d = document.createElement('div');
     d.className = 'fitem';
     d.innerHTML = `<i class="ti ${ico} fitem-icon"></i><span class="fitem-name">${f.name}</span><span class="fitem-meta">${ext} · ${sz}</span><button class="fitem-rm" onclick="removeFile(${i})"><i class="ti ti-x"></i></button>`;
     list.appendChild(d);
   });
-
   if (files.length > 0) {
-    volBar.style.display = 'flex';
-    actions.style.display = 'flex';
+    volBar.classList.add('visible');
+    clear.classList.add('visible');
     const nLotes = Math.ceil(files.length / TAMANHO_LOTE);
     document.getElementById('vol-n').textContent = files.length;
-    document.getElementById('vol-lotes').textContent = nLotes + ' chamada(s) à IA (lotes de ' + TAMANHO_LOTE + ')';
-    volBar.className = 'vol-bar' + (files.length > 150 ? ' over' : files.length > 80 ? ' warn' : '');
+    document.getElementById('vol-lotes').textContent = nLotes + ' sub-lote(s)';
+    document.getElementById('vol-pages').textContent = files.length + ' ficheiro(s)';
+    volBar.className = 'vol-bar visible' + (files.length > 150 ? ' warn' : '');
   } else {
-    volBar.style.display = 'none';
-    actions.style.display = 'none';
+    volBar.classList.remove('visible');
+    clear.classList.remove('visible');
   }
 }
 
 function removeFile(i) { files.splice(i,1); renderFiles(); checkReady(); }
 function limparTudo() { files = []; renderFiles(); checkReady(); }
+
 function checkReady() {
-  document.getElementById('btn-run').disabled = files.length === 0;
+  const temFicheiros = files.length > 0;
+  const modoOk = modoActivo === 'B' || (
+    modoActivo === 'A' &&
+    document.getElementById('emp-nome').value.trim() &&
+    document.getElementById('emp-nif').value.trim().length === 9 &&
+    document.getElementById('emp-ramo').value.trim()
+  );
+  document.getElementById('btn-run').disabled = !(temFicheiros && modoOk);
 }
+
+['emp-nome','emp-nif','emp-ramo'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', checkReady);
+});
 
 // ── TESTAR GAS ──
 async function testarGAS() {
@@ -452,7 +625,7 @@ async function testarGAS() {
   try {
     const r = await fetch(url, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({teste:true}) });
     const j = await r.json();
-    if (j.ok) { toast('GAS ligado — ' + (j.versao || '') + ' ✓'); }
+    if (j.ok) toast('GAS ligado · v' + (j.versao||'2.0') + ' ✓');
     else toast('GAS respondeu com erro', 'warn');
   } catch(e) { toast('Sem resposta: ' + e.message, 'err'); }
 }
@@ -461,9 +634,8 @@ async function testarGAS() {
 async function iniciar() {
   const url = document.getElementById('gas-url').value.trim();
   const idioma = document.getElementById('idioma').value;
-  localStorage.setItem(GAS_KEY, url);
-
   if (!url) { toast('Configura o URL do GAS primeiro', 'warn'); return; }
+  localStorage.setItem(GAS_KEY, url);
 
   resultado = null;
   document.getElementById('result-wrap').style.display = 'none';
@@ -475,57 +647,68 @@ async function iniciar() {
 
   const t0 = Date.now();
   try {
-    setStep('s1','active'); prog(8, 'A preparar lote...');
+    setStep('s1','active'); prog(8, 'A preparar ficheiros...');
     log('A codificar ' + files.length + ' ficheiro(s)...');
     const arquivos = await Promise.all(files.map(toBase64));
-    setStep('s1','done'); log('Lote pronto ✓','ok');
+    setStep('s1','done'); log('Ficheiros prontos ✓', 'ok');
 
-    setStep('s2','active'); prog(20, 'A enviar para o GAS / Drive...');
-    log('A enviar lote para processamento...');
+    setStep('s2','active'); prog(20, 'A enviar para o Drive...');
 
-    const payload = { idioma, arquivos };
+    const payload = { idioma, arquivos, modoFluxo: modoActivo };
+    if (modoActivo === 'A') {
+      payload.empresaCliente = {
+        nome:           document.getElementById('emp-nome').value.trim(),
+        nif:            document.getElementById('emp-nif').value.trim(),
+        ramoActividade: document.getElementById('emp-ramo').value.trim()
+      };
+      log('Modo A — empresa: ' + payload.empresaCliente.nome + ' · ' + payload.empresaCliente.ramo);
+    } else {
+      log('Modo B — identificação automática por NIF nos documentos');
+    }
+
     const resp = await fetch(url, {
       method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify(payload)
     });
-    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-    setStep('s2','done'); log('Drive recebeu ✓','ok');
-    setStep('s3','active'); prog(45,'Gemini a extrair dados...');
+    setStep('s2','done'); log('Drive recebeu ✓', 'ok');
+    setStep('s3','active'); prog(50, 'Gemini a extrair dados OCR...');
 
     let data;
     try { data = await resp.json(); } catch(je) { throw new Error('Resposta inválida do GAS'); }
-    if (!data.ok) throw new Error(data.erro||'Erro no GAS');
+    if (!data.ok) throw new Error(data.erro || 'Erro no GAS');
 
-    setStep('s3','done'); log('Extracção concluída ✓','ok');
-    setStep('s4','active'); prog(70,'A identificar empresas / ramo de actividade...');
-    log('Perfis de empresa consultados/sugeridos ✓','ok');
+    setStep('s3','done'); log('Extracção concluída ✓', 'ok');
+    setStep('s4','active'); prog(70, 'A identificar empresas...');
+    log('Perfis de empresa consultados ✓', 'ok');
     setStep('s4','done');
-    setStep('s5','active'); prog(90,'A classificar contas PGC...');
-    log('Classificação PGC contextual concluída ✓','ok');
-    setStep('s5','done'); prog(100,'Concluído!');
+    setStep('s5','active'); prog(90, 'A classificar contas PGC...');
+    log('Classificação PGC contextual concluída ✓', 'ok');
+    setStep('s5','done'); prog(100, 'Concluído!');
 
     resultado = data.data;
-    const nAmarelo = resultado.resumo ? resultado.resumo.aConfirmar : 0;
-    if (nAmarelo > 0) log(nAmarelo + ' item(ns) marcado(s) para confirmação','warn');
-
+    const nAm = resultado.resumo ? resultado.resumo.aConfirmar : 0;
+    if (nAm > 0) log(nAm + ' item(ns) marcado(s) para confirmação', 'warn');
     mostrarResultado(resultado, Date.now()-t0);
 
   } catch(e) {
-    log('ERRO: '+e.message,'err'); toast('Erro: '+e.message,'err'); prog(0,'Erro');
+    log('ERRO: ' + e.message, 'err');
+    toast('Erro: ' + e.message, 'err');
+    prog(0, 'Erro');
   } finally {
     setBtnState(false);
   }
 }
 
-// ── RESULTADO ──
+// ── MOSTRAR RESULTADO ──
 function mostrarResultado(data, ms) {
-  const r = data.resumo || { totalDocumentos:0, confiancaAlta:0, aConfirmar:0 };
-
-  document.getElementById('rk-total').textContent = r.totalDocumentos;
-  document.getElementById('rk-verde').textContent = r.confiancaAlta;
-  document.getElementById('rk-amarelo').textContent = r.aConfirmar;
-  document.getElementById('resumo-tempo').textContent = `Processado em ${(ms/1000).toFixed(1)}s`;
+  const r = data.resumo || {};
+  document.getElementById('rk-total').textContent = r.totalDocumentos || 0;
+  document.getElementById('rk-verde').textContent = r.confiancaAlta || 0;
+  document.getElementById('rk-amarelo').textContent = r.aConfirmar || 0;
+  document.getElementById('resumo-tempo').textContent = 'Processado em ' + (ms/1000).toFixed(1) + 's' + (r.empresa ? ' · ' + r.empresa : '');
+  document.getElementById('resumo-title').textContent = r.modoFluxo === 'A' ? 'Empresa: ' + (r.empresa || '—') : 'Lote processado';
 
   const alerta = document.getElementById('alerta-perfis');
   if (data.linkPerfis) {
@@ -540,28 +723,23 @@ function mostrarResultado(data, ms) {
   renderDocList(data.documentos || []);
 
   document.getElementById('result-wrap').style.display = 'block';
-  document.getElementById('result-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+  document.getElementById('result-wrap').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function renderDocList(docs) {
   const list = document.getElementById('doc-list');
   list.innerHTML = '';
-
   const filtrados = filtroActivo === 'todos' ? docs : docs.filter(d => d.semaforo === filtroActivo);
-
-  if (filtrados.length === 0) {
-    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text3);font-family:var(--mono);font-size:12px">Nenhum documento nesta categoria</div>`;
+  if (!filtrados.length) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);font-family:var(--mono);font-size:12px">Nenhum documento nesta categoria</div>';
     return;
   }
-
-  filtrados.forEach((d, i) => {
+  filtrados.forEach(d => {
     const card = document.createElement('div');
     card.className = 'doc-card';
-    const confiancaClasse = d.confianca >= 80 ? 'alta' : 'baixa';
-    const ramoClasse = d.ramoConfirmado ? 'confirmado' : 'pendente';
-    const ramoIcone = d.ramoConfirmado ? 'ti-circle-check' : 'ti-clock-exclamation';
-    const ramoTexto = d.ramoConfirmado ? 'Ramo confirmado' : 'Ramo sugerido — a confirmar';
-
+    const ccls = d.confianca >= 80 ? 'alta' : 'baixa';
+    const rcls = d.ramoConfirmado ? 'confirmado' : 'pendente';
+    const rico = d.ramoConfirmado ? 'ti-circle-check' : 'ti-clock-exclamation';
     card.innerHTML = `
       <div class="doc-row" onclick="toggleDoc(this)">
         <span class="doc-sem ${d.semaforo}"></span>
@@ -576,8 +754,7 @@ function renderDocList(docs) {
         <i class="ti ti-chevron-right doc-chevron"></i>
       </div>
       <div class="doc-detail">
-        <span class="ramo-tag ${ramoClasse}"><i class="ti ${ramoIcone}"></i> ${ramoTexto}: ${d.ramoActividade || '—'}</span>
-
+        <span class="ramo-tag ${rcls}"><i class="ti ${rico}"></i> ${d.ramoConfirmado ? 'Ramo confirmado' : 'Ramo sugerido — a confirmar'}: ${d.ramoActividade || '—'}</span>
         <div class="detail-grid">
           <div class="detail-item"><div class="detail-label">Ficheiro</div><div class="detail-value">${d.documento}</div></div>
           <div class="detail-item"><div class="detail-label">NIF</div><div class="detail-value">${d.nif || '—'}</div></div>
@@ -586,75 +763,127 @@ function renderDocList(docs) {
           <div class="detail-item"><div class="detail-label">IVA (${d.taxaIva || 0}%)</div><div class="detail-value">${fmtMzn(d.valorIva)}</div></div>
           <div class="detail-item"><div class="detail-label">Valor total</div><div class="detail-value">${fmtMzn(d.valor)}</div></div>
         </div>
-
         <div class="detail-pgc">
-          <div class="detail-pgc-head">
-            <span class="detail-pgc-conta">${d.contaPGC || '—'}</span>
-          </div>
+          <div class="detail-pgc-conta">${d.contaPGC || '—'}</div>
           <div class="detail-pgc-nome">${d.nomeContaPGC || '—'}</div>
           <div class="detail-pgc-just">${d.justificacaoPGC || 'Sem justificação disponível.'}</div>
         </div>
-
         <div class="confianca-bar-wrap">
-          <div class="confianca-top"><span>Confiança da classificação</span><span>${d.confianca}%</span></div>
-          <div class="confianca-track"><div class="confianca-fill ${confiancaClasse}" style="width:${d.confianca}%"></div></div>
+          <div class="confianca-top"><span>Confiança</span><span>${d.confianca}%</span></div>
+          <div class="confianca-track"><div class="confianca-fill ${ccls}" style="width:${d.confianca}%"></div></div>
         </div>
-      </div>
-    `;
+      </div>`;
     list.appendChild(card);
   });
 }
 
-function toggleDoc(rowEl) {
-  rowEl.parentElement.classList.toggle('expanded');
-}
-
+function toggleDoc(rowEl) { rowEl.parentElement.classList.toggle('expanded'); }
 function filtrar(f) {
   filtroActivo = f;
   document.querySelectorAll('.filtro-btn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
   if (resultado) renderDocList(resultado.documentos || []);
 }
 
-// ── EXPORTAR ──
-function exportarExcel() {
-  if (!resultado || !resultado.documentos || resultado.documentos.length === 0) {
-    toast('Sem dados para exportar','warn'); return;
-  }
-  const linhas = resultado.documentos.map(d => ({
-    'Ficheiro':              d.documento,
-    'Empresa':               d.empresa,
-    'NIF':                   d.nif,
-    'Ramo de Actividade':    d.ramoActividade,
-    'Ramo Confirmado':       d.ramoConfirmado ? 'Sim' : 'Não',
-    'Data':                  d.data,
-    'Fornecedor':            d.fornecedor,
-    'Descrição':             d.descricaoOperacao,
-    'Valor (MZN)':           d.valor,
-    'Taxa IVA (%)':          d.taxaIva,
-    'Valor IVA (MZN)':       d.valorIva,
-    'Conta PGC':             d.contaPGC,
-    'Nome da Conta':         d.nomeContaPGC,
-    'Justificação PGC':      d.justificacaoPGC,
-    'Confiança (%)':         d.confianca,
-    'Estado':                d.semaforo === 'verde' ? 'Confirmado' : 'A confirmar'
-  }));
+// ── EXPORT TABS ──
+function setExportTab(tab) {
+  ['lancamentos','balancete'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('panel-' + t).classList.toggle('active', t === tab);
+  });
+}
 
+// ── EXPORTAR: LANÇAMENTOS ──
+function exportarLancamentosExcel() {
+  if (!resultado || !resultado.documentos || !resultado.documentos.length) { toast('Sem dados','warn'); return; }
+  const linhas = resultado.documentos.map(d => ({
+    'Ficheiro':           d.documento,
+    'Empresa':            d.empresa,
+    'NIF':                d.nif,
+    'Ramo de Actividade': d.ramoActividade,
+    'Confirmado':         d.ramoConfirmado ? 'Sim' : 'Não',
+    'Data':               d.data,
+    'Fornecedor':         d.fornecedor,
+    'Descrição':          d.descricaoOperacao,
+    'Valor (MZN)':        d.valor,
+    'Taxa IVA (%)':       d.taxaIva,
+    'Valor IVA (MZN)':   d.valorIva,
+    'Conta PGC':          d.contaPGC,
+    'Nome Conta':         d.nomeContaPGC,
+    'Justificação PGC':   d.justificacaoPGC,
+    'Confiança (%)':      d.confianca,
+    'Estado':             d.semaforo === 'verde' ? 'Confirmado' : 'A confirmar'
+  }));
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [
-    {wch:22},{wch:22},{wch:12},{wch:18},{wch:14},{wch:11},{wch:22},{wch:30},
-    {wch:13},{wch:11},{wch:13},{wch:10},{wch:26},{wch:40},{wch:11},{wch:12}
-  ];
+  ws['!cols'] = [{wch:22},{wch:22},{wch:12},{wch:20},{wch:10},{wch:12},{wch:22},{wch:30},{wch:13},{wch:11},{wch:14},{wch:12},{wch:28},{wch:40},{wch:12},{wch:14}];
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'DocScan');
-  XLSX.writeFile(wb, 'docscan_lote_' + Date.now() + '.xlsx');
-  toast('Excel gerado ✓');
+  XLSX.utils.book_append_sheet(wb, ws, 'Lançamentos');
+  XLSX.writeFile(wb, 'lancamentos_' + Date.now() + '.xlsx');
+  toast('Excel de lançamentos gerado ✓');
+}
+
+// ── EXPORTAR: BALANCETE ──
+function exportarBalanceteExcel() {
+  if (!resultado || !resultado.documentos || !resultado.documentos.length) { toast('Sem dados','warn'); return; }
+  const docs = resultado.documentos;
+  const confirmados = docs.filter(d => d.semaforo === 'verde');
+  const pendentes = docs.filter(d => d.semaforo === 'amarelo');
+
+  // Agrupar confirmados por conta PGC
+  const porConta = {};
+  confirmados.forEach(d => {
+    const k = d.contaPGC || 'S/C';
+    if (!porConta[k]) porConta[k] = { conta: k, nome: d.nomeContaPGC || '', totalDebito: 0, totalCredito: 0, nDocs: 0 };
+    // Débitos (compras/gastos) e créditos (vendas/proveitos)
+    const ehDebito = !['7','8'].some(c => (d.contaPGC || '').startsWith(c));
+    if (ehDebito) porConta[k].totalDebito += Number(d.valor) || 0;
+    else porConta[k].totalCredito += Number(d.valor) || 0;
+    porConta[k].nDocs++;
+  });
+
+  const linhasBalancete = Object.values(porConta)
+    .sort((a,b) => a.conta.localeCompare(b.conta))
+    .map(r => ({
+      'Conta PGC':          r.conta,
+      'Designação':         r.nome,
+      'Nº Documentos':      r.nDocs,
+      'Total Débito (MZN)': Math.round(r.totalDebito * 100) / 100,
+      'Total Crédito (MZN)':Math.round(r.totalCredito * 100) / 100,
+      'Saldo (MZN)':        Math.round((r.totalDebito - r.totalCredito) * 100) / 100
+    }));
+
+  const wb = XLSX.utils.book_new();
+
+  // Aba 1: Balancete (confirmados)
+  const wsB = XLSX.utils.json_to_sheet(linhasBalancete);
+  wsB['!cols'] = [{wch:12},{wch:30},{wch:14},{wch:18},{wch:18},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsB, 'Balancete');
+
+  // Aba 2: A confirmar (amarelos) — só se existirem
+  if (pendentes.length > 0) {
+    const linhasPend = pendentes.map(d => ({
+      'Ficheiro':  d.documento,
+      'Empresa':   d.empresa,
+      'Data':      d.data,
+      'Descrição': d.descricaoOperacao,
+      'Valor':     d.valor,
+      'Conta sugerida': d.contaPGC,
+      'Motivo':    d.justificacaoPGC,
+      'Confiança': d.confianca + '%'
+    }));
+    const wsP = XLSX.utils.json_to_sheet(linhasPend);
+    wsP['!cols'] = [{wch:22},{wch:20},{wch:12},{wch:30},{wch:13},{wch:14},{wch:36},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsP, 'A confirmar');
+  }
+
+  XLSX.writeFile(wb, 'balancete_' + Date.now() + '.xlsx');
+  toast('Balancete gerado ✓' + (pendentes.length > 0 ? ' (' + pendentes.length + ' pendentes em aba separada)' : ''));
 }
 
 function exportarJSON() {
-  if (!resultado) { toast('Sem dados para exportar','warn'); return; }
+  if (!resultado) { toast('Sem dados','warn'); return; }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(resultado, null, 2)], {type:'application/json'}));
-  a.download = 'docscan_lote_' + Date.now() + '.json';
+  a.download = 'docscan_' + Date.now() + '.json';
   a.click();
 }
 
@@ -667,35 +896,35 @@ async function toBase64(file) {
     r.readAsDataURL(file);
   });
 }
-function setStep(id,state) { document.getElementById(id).className='step'+(state?' '+state:''); }
-function prog(pct,label) {
+function setStep(id,s){ document.getElementById(id).className='step'+(s?' '+s:''); }
+function prog(pct,label){
   document.getElementById('pfill').style.width=pct+'%';
   document.getElementById('pbar-pct').textContent=pct+'%';
   document.getElementById('pbar-label').textContent=label;
 }
-function log(msg,cls='') {
-  const box=document.getElementById('logbox');
+function log(msg,cls=''){
+  const b=document.getElementById('logbox');
   const d=document.createElement('div');
   d.className='log-line '+(cls==='ok'?'log-ok':cls==='err'?'log-err':cls==='warn'?'log-warn':'');
   d.textContent='['+new Date().toLocaleTimeString('pt')+'] '+msg;
-  box.appendChild(d); box.scrollTop=box.scrollHeight;
+  b.appendChild(d); b.scrollTop=b.scrollHeight;
 }
-function setBtnState(loading) {
+function setBtnState(loading){
   const btn=document.getElementById('btn-run');
   btn.disabled=loading;
   document.getElementById('run-icon').className=loading?'ti ti-loader spin':'ti ti-scan';
   document.getElementById('run-label').textContent=loading?'A processar lote...':'Processar Lote';
   if (!loading) checkReady();
 }
-function toast(msg,type='ok') {
+function toast(msg,type='ok'){
   const t=document.getElementById('toast');
   t.textContent=msg;
   t.style.borderColor=type==='err'?'var(--red)':type==='warn'?'var(--amber)':'var(--cyan)';
   t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800);
 }
-function fmtMzn(v) {
-  if (v === undefined || v === null || v === '') return '—';
-  return Number(v).toLocaleString('pt-MZ',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' MZN';
+function fmtMzn(v){
+  if (v===undefined||v===null||v==='') return '—';
+  return Number(v).toLocaleString('pt-MZ',{minimumFractionDigits:2,maximumFractionDigits:2})+' MZN';
 }
 </script>
 </body>
