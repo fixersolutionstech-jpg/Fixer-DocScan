@@ -245,6 +245,7 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
   .export-tab span{display:none}
 }
 </style>
+<script src="fixeros-auth.js"></script>
 </head>
 <body>
 <div class="app">
@@ -460,10 +461,12 @@ let splitQueue = [];
 let splitResolve = null;
 
 window.addEventListener('load', () => {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('ocr_sw.js').catch(()=>{});
-  const saved = localStorage.getItem(GAS_KEY);
-  if (saved) document.getElementById('gas-url').value = saved;
-  setModo('B');
+  FixerAuth.exigirLogin('docscan').then(() => {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('ocr_sw.js').catch(()=>{});
+    const saved = localStorage.getItem(GAS_KEY);
+    if (saved) document.getElementById('gas-url').value = saved;
+    setModo('B');
+  }).catch(() => { /* gate de login já está visível, nada a fazer aqui */ });
 });
 
 // ── MODO A / B ──
@@ -654,7 +657,7 @@ async function iniciar() {
 
     setStep('s2','active'); prog(20, 'A enviar para o Drive...');
 
-    const payload = { idioma, arquivos, modoFluxo: modoActivo };
+    const payload = { idioma, arquivos, modoFluxo: modoActivo, authToken: FixerAuth.getToken() };
     if (modoActivo === 'A') {
       payload.empresaCliente = {
         nome:           document.getElementById('emp-nome').value.trim(),
