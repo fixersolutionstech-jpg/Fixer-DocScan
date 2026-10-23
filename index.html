@@ -2102,7 +2102,7 @@ function renderDocList(docs) {
       <div class="doc-row" onclick="toggleDoc(this)">
         <span class="doc-sem ${esc(d.semaforo)}"></span>
         <div class="doc-main">
-          <div class="doc-name">${esc(d.empresa || d.fornecedor || d.documento)} ${chipRevisao(d)}</div>
+          <div class="doc-name">${esc((venda ? destinatario(d) : d.fornecedor) || d.empresa || d.documento)} ${chipRevisao(d)}</div>
           <div class="doc-sub">${esc(TIPOS_DOC[tipo] || tipo)}${d.numeroDocumento ? ' ' + esc(d.numeroDocumento) : ''} · ${esc(d.descricaoOperacao || d.documento)} · ${esc(d.data || '—')}${estPag ? ' · ' + esc(estPag) : ''}</div>
           ${(d.problemas && d.problemas.length) ? '<div class="doc-prob">⚠ ' + esc(d.problemas.join('; ')) + '</div>' : ''}
         </div>
@@ -2332,12 +2332,15 @@ async function abrirLoteGuardado(id) {
   } catch (e) { toast('Não foi possível abrir o lote: ' + e.message, 'err'); }
 }
 
+// v3.2: destinatário IMPRESSO no documento (lotes antigos não o têm: usa-se o campo empresa, que era o mesmo)
+function destinatario(d) { return d.destinatarioDoc !== undefined ? d.destinatarioDoc : (d.empresa || ''); }
+
 // ── EXPORTAR (formatos abertos, sem modelo de ERP) ──
 function exportarLancamentosExcel() {
   if (!resultado || !resultado.documentos || !resultado.documentos.length) { toast('Sem dados', 'warn'); return; }
   if (!excelDisponivel()) return;
   const linhas = resultado.documentos.map((d) => ({
-    'Ficheiro': d.documento, 'Empresa': d.empresa, 'NIF': d.nif,
+    'Ficheiro': d.documento, 'Empresa': d.empresa, 'NIF do emissor': d.nif, 'Destinatário (no documento)': destinatario(d), 'NIF do destinatário': d.nifDestinatario || '',
     'Ramo de Actividade': d.ramoActividade, 'Confirmado': d.ramoConfirmado ? 'Sim' : 'Não',
     'Data': d.data, 'Fornecedor': d.fornecedor, 'Descrição': d.descricaoOperacao,
     'Valor (MZN)': d.valor, 'Taxa IVA (%)': d.taxaIva, 'Valor IVA (MZN)': d.valorIva,
@@ -2346,7 +2349,7 @@ function exportarLancamentosExcel() {
     'Problemas': (d.problemas || []).join('; ')
   }));
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 30 }, { wch: 13 }, { wch: 11 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 40 }, { wch: 12 }, { wch: 14 }, { wch: 40 }];
+  ws['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 26 }, { wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 30 }, { wch: 13 }, { wch: 11 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 40 }, { wch: 12 }, { wch: 14 }, { wch: 40 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Lançamentos');
   XLSX.writeFile(wb, 'lancamentos_' + Date.now() + '.xlsx');
@@ -2411,7 +2414,7 @@ function exportarLoteExcel() {
   const docs = resultado.documentos, movs = todosMovimentos();
   const prontosD = docs.filter((d) => d.estadoRevisao === 'pronto'), prontosM = movs.filter((m) => m.estadoRevisao === 'pronto');
   const linhaDoc = (d) => ({ 'Ficheiro': d.documento, 'Tipo': TIPOS_DOC[d.tipoDocumento] || d.tipoDocumento || '', 'Sentido': d.sentido || '', 'Número': d.numeroDocumento || '', 'Data': d.data,
-    'NIF': d.nif, 'Fornecedor/emissor': d.fornecedor, 'Destinatário': d.empresa, 'Descrição': d.descricaoOperacao, 'Valor (MZN)': d.valor, 'IVA (MZN)': d.valorIva,
+    'Empresa': d.empresa, 'NIF': d.nif, 'Fornecedor/emissor': d.fornecedor, 'Destinatário': destinatario(d), 'Descrição': d.descricaoOperacao, 'Valor (MZN)': d.valor, 'IVA (MZN)': d.valorIva,
     'Conta': d.contaPGC, 'Designação': nomeConta(d.contaPGC), 'Pagamento': ESTADO_PAG[d.estadoPagamento] || '', 'Em aberto': d.saldoEmAberto || 0,
     'Estado': d.estadoRevisao || 'rever', 'Semáforo': d.semaforo, 'Problemas': (d.problemas || []).join('; ') });
   let lanc = [];
