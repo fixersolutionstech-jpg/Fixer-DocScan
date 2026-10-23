@@ -1274,6 +1274,54 @@ function lancContaIVADedutivel_(contaBase, contas) {
   return contas.ivaDedOutros;
 }
 
+// ── IVA DEDUTÍVEL (v3.3) — CIVA art. 18.º, 20.º e 27.º (consolidado com a Lei 10/2025) ──
+// Nota completa e fontes: FIXER/02_PRODUCAO/fixer-os/referencias/iva_deducao_mocambique_2026.md
+// Devolve { pct: 1 | 0.5 | 0, motivo, aviso (só quando há dúvida real), irpc (marca informativa) }.
+// A parte não dedutível do IVA é GASTO: soma-se à conta da despesa.
+var LANC_RX_TRANSPORTADORA = /transport|transitari|logistic|camionag|frete|carga/;
+var LANC_RX_GASOLEO = /gas[o]leo|gasoleo|diesel/;
+var LANC_RX_GASOLINA = /gasolina|sem chumbo|\bsuper\b|petrol\b/;
+var LANC_RX_MAQUINA = /gerador|maquina|tractor|trator|empilhador|grua|retroescavadora|bulldozer|compactador|motobomba/;
+var LANC_RX_REFEICOES = /refeic|restaurante|almoco|jantar|pequeno.almoco|lanche|catering|bebida|cerveja|refrigerante|alojamento|hotel|hospedagem|pensao|\blodge\b|tabaco|cigarro/;
+var LANC_RX_TELEMOVEL = /recarga|telemovel|celular|vodacom|movitel|tmcel|\bmcel\b|credelec.*voz/;
+var LANC_RX_FIXO = /telefone fixo|\bfixo\b|\btdm\b/;
+var LANC_RX_VIATURA_TURISMO = /viatura ligeira|automovel|\bcarro\b|motorizada|motociclo|\bmota\b|barco|helicoptero|aviao/;
+function lancRegraIVA_(doc) {
+  var conta = String(doc.contaPGC || '');
+  var txt = lancSemAcentos_((doc.descricaoOperacao || '') + ' ' + (doc.fornecedor || ''));
+  var ramo = lancSemAcentos_(doc.ramoActividade || '');
+  var transportadora = LANC_RX_TRANSPORTADORA.test(ramo);
+  var irpc = /viaturas ligeiras/.test(lancSemAcentos_(doc.nomeContaPGC || '')) || /^6\.3\.2\.1\.(3\.[123]|5)\.1$/.test(conta) ? 'IRPC: 50% não aceite como gasto (viaturas ligeiras de passageiros)'
+           : (conta.indexOf('6.3.2.2.9') === 0 ? 'IRPC: 80% não aceite como gasto (despesas de representação)' : '');
+  function r(pct, motivo, aviso) { return { pct: pct, motivo: motivo, aviso: aviso || '', irpc: irpc }; }
+  // Condições do documento (art. 18.º, n.º 2 e art. 27.º, n.º 5): IVA em factura com o NUIT da empresa
+  var nifEmp = String(doc.empresaNifLote || '').replace(/\D/g, ''), nifDest = String(doc.nifDestinatario || '').replace(/\D/g, '');
+  if (nifEmp.length === 9 && nifDest !== nifEmp)
+    return r(0, 'documento sem o NUIT da empresa (art. 27.º, n.º 5, a))', 'IVA não dedutível: o documento não tem o NUIT da empresa (' + nifEmp + ')' + (nifDest ? ', tem o ' + nifDest : '') + ' — pedir factura em nome da empresa');
+  if (Number(doc.taxaIva) === 5) return r(0, 'compra à taxa reduzida de 5% (art. 20.º, n.º 2)');
+  if (conta.indexOf('2.') === 0) return r(1, 'inventário ou revenda');                         // art. 20.º, n.º 3, a)
+  var combustivel = (conta.indexOf('6.3.2.1.3') === 0 && conta.indexOf('6.3.2.1.3.3') !== 0) || LANC_RX_GASOLEO.test(txt) || LANC_RX_GASOLINA.test(txt);
+  if (combustivel) {
+    if (transportadora) return r(1, 'transportadora: o combustível é a própria actividade (indicação do contabilista)');
+    var gasoleo = conta.indexOf('6.3.2.1.3.1') === 0 || LANC_RX_GASOLEO.test(txt);
+    var gasolina = conta.indexOf('6.3.2.1.3.2') === 0 || LANC_RX_GASOLINA.test(txt);
+    if (gasoleo && !gasolina) return LANC_RX_MAQUINA.test(txt) ? r(1, 'gasóleo de máquina ou tractor (art. 20.º, n.º 1, b) iii/iv)') : r(0.5, 'gasóleo: 50% (art. 20.º, n.º 1, b))');
+    if (gasolina && !gasoleo) return r(0, 'gasolina e outros combustíveis de viaturas: 0% (art. 20.º, n.º 1, b))');
+    return r(0, 'combustível de tipo não identificado', 'confirmar o combustível: gasóleo deduz 50%, gasolina 0% (art. 20.º, n.º 1, b))');
+  }
+  if (/^6\.3\.2\.1\.(3\.3|5)\.1$/.test(conta) || (conta.indexOf('3.') === 0 && LANC_RX_VIATURA_TURISMO.test(txt)))
+    return transportadora || /aluguer de viaturas|rent.?a.?car|stand/.test(ramo) ? r(1, 'viaturas são a actividade da empresa (art. 20.º, n.º 3, a))')
+                                                                                : r(0, 'viaturas de turismo: 0% (art. 20.º, n.º 1, a))');
+  if (conta.indexOf('6.3.2.2.8') === 0 || conta === '6.3.2.2.3') return r(0, 'transportes e viagens: 0% (art. 20.º, n.º 1, c))');
+  if (conta.indexOf('6.3.2.2.9') === 0 || LANC_RX_REFEICOES.test(txt)) return r(0, 'alojamento, alimentação, bebidas ou recepção: 0% (art. 20.º, n.º 1, d))');
+  if (conta.indexOf('6.3.2.2.4') === 0 || LANC_RX_TELEMOVEL.test(txt)) {
+    if (LANC_RX_FIXO.test(txt)) return r(1, 'telefone fixo em nome da empresa (art. 20.º, n.º 1, e))');
+    if (LANC_RX_TELEMOVEL.test(txt)) return r(0, 'telemóvel: 0% (art. 20.º, n.º 1, e))');
+    return r(0, 'comunicações que não são telefone fixo', 'confirmar: só o telefone fixo em nome da empresa é dedutível; internet e dados a confirmar com o contabilista (art. 20.º, n.º 1, e))');
+  }
+  return r(1, '');
+}
+
 // ── SENTIDO: compra ou venda ──
 // Regra (código): emitido pela empresa do lote ⇒ venda; recebido ⇒ compra.
 // Sem NIF da empresa ⇒ usa o palpite da IA, mas fica "a confirmar".
@@ -1306,7 +1354,7 @@ function lancConstruir_(doc, ctx) {
   var meio = doc.meioPagamento === 'banco' || doc.meioPagamento === 'caixa' ? doc.meioPagamento : '';
   var contaMeio = meio === 'banco' ? contas.banco : (meio === 'caixa' ? contas.caixa : '');
   var terceiro = sentido === 'compra' ? contas.fornecedores : contas.clientes;
-  var partidas = [], problemas = [], estado = 'na', aberto = null;
+  var partidas = [], problemas = [], estado = 'na', aberto = null, regraIva = null;
   function p(conta, nat, valor, papel) { if (lancArred_(valor) !== 0) partidas.push({ conta: conta || '', natureza: nat, valor: lancArred_(valor), papel: papel }); }
 
   if (tipo === 'extracto' || tipo === 'plano_amortizacao' || tipo === 'outro') {
@@ -1330,8 +1378,12 @@ function lancConstruir_(doc, ctx) {
     var D = inverter ? 'C' : 'D', Cc = inverter ? 'D' : 'C';
     var unico = !inverter && tipo === 'recibo' && contaMeio && ctx.lancamentoUnico && sentido === 'compra';
     if (sentido === 'compra') {
-      p(doc.contaPGC, D, base, 'base');
-      if (iva > 0) p(lancContaIVADedutivel_(doc.contaPGC, contas), D, iva, 'iva');
+      // v3.3: só a parte DEDUTÍVEL vai para o IVA; o resto é gasto na conta da despesa
+      regraIva = iva > 0 ? lancRegraIVA_(doc) : null;
+      var ivaDed = regraIva ? lancArred_(iva * regraIva.pct) : iva, ivaNd = lancArred_(iva - ivaDed);
+      p(doc.contaPGC, D, base + ivaNd, 'base');
+      if (ivaDed > 0) p(lancContaIVADedutivel_(doc.contaPGC, contas), D, ivaDed, 'iva');
+      if (regraIva && regraIva.aviso) problemas.push(regraIva.aviso);
       p(unico ? contaMeio : terceiro, Cc, total, unico ? 'meio' : 'terceiro');
     } else {
       p(terceiro, D, total, 'terceiro');
@@ -1356,7 +1408,8 @@ function lancConstruir_(doc, ctx) {
   var prova = { ok: Math.abs(deb - cre) <= LANC_TOL && semConta === 0 && (partidas.length > 0 || estado === 'por_localizar'), debitos: deb, creditos: cre };
   if (Math.abs(deb - cre) > LANC_TOL) problemas.push('débitos (' + deb + ') diferentes dos créditos (' + cre + ')');
   if (semConta) problemas.push(semConta + ' partida(s) sem conta');
-  return { partidas: partidas, estadoPagamento: estado, aberto: aberto, problemas: problemas, prova: prova };
+  return { partidas: partidas, estadoPagamento: estado, aberto: aberto, problemas: problemas, prova: prova,
+           iva: regraIva ? { pct: regraIva.pct, dedutivel: lancArred_(iva * regraIva.pct), naoDedutivel: lancArred_(iva - lancArred_(iva * regraIva.pct)), motivo: regraIva.motivo, irpc: regraIva.irpc } : null };
 }
 
 // ── ITENS EM ABERTO (contas correntes) ──
@@ -1662,6 +1715,7 @@ function lancResolverLote_(estado) {
     d.partidas = lanc.partidas; d.provaLancamento = lanc.prova;
     d.estadoPagamento = lanc.estadoPagamento; d.saldoEmAberto = lanc.aberto ? lanc.aberto.valor : 0; d.parcelas = [];
     d._lancProblemas = lanc.problemas;
+    d.regraIva = lanc.iva;
     if (d.estadoRevisao === 'ignorado') return;
     var it = lancItemAberto_(d, lanc, d.idDoc); if (it) itens.push(it);
   });
@@ -2125,6 +2179,8 @@ function renderDocList(docs) {
             ${tipo === 'recibo' ? `<label>Pago por <select class="sel sel-s" onchange="docMeio(${i}, this.value)"><option value=""${!d.meioPagamento ? ' selected' : ''}>Por localizar no extracto</option><option value="banco"${d.meioPagamento === 'banco' ? ' selected' : ''}>Banco</option><option value="caixa"${d.meioPagamento === 'caixa' ? ' selected' : ''}>Caixa</option></select></label>` : ''}
           </div>
           ${tabelaPartidas(d.partidas)}
+          ${d.regraIva && d.regraIva.pct < 1 ? '<div class="nota">IVA dedutível ' + Math.round(d.regraIva.pct * 100) + '% (' + fmtMznDoc(d.regraIva.dedutivel) + '); não dedutível ' + fmtMznDoc(d.regraIva.naoDedutivel) + ' somado ao gasto — ' + esc(d.regraIva.motivo) + '</div>' : ''}
+          ${d.regraIva && d.regraIva.irpc ? '<div class="nota">' + esc(d.regraIva.irpc) + '</div>' : ''}
           ${d.parcelas && d.parcelas.length ? '<div class="nota">Pagamentos associados: ' + d.parcelas.map((p) => esc(p.data) + ' ' + fmtMznDoc(p.valor)).join(' · ') + (d.saldoEmAberto > 0 ? ' · falta ' + fmtMznDoc(d.saldoEmAberto) : '') + '</div>' : ''}
           <div class="acoes-doc fim">
             ${d.nif && !semLanc ? `<label class="chk"><input type="checkbox" ${d.lembrar ? 'checked' : ''} onchange="docLembrar(${i}, this.checked)"/> Lembrar para este fornecedor/cliente</label>` : ''}
@@ -2344,12 +2400,14 @@ function exportarLancamentosExcel() {
     'Ramo de Actividade': d.ramoActividade, 'Confirmado': d.ramoConfirmado ? 'Sim' : 'Não',
     'Data': d.data, 'Fornecedor': d.fornecedor, 'Descrição': d.descricaoOperacao,
     'Valor (MZN)': d.valor, 'Taxa IVA (%)': d.taxaIva, 'Valor IVA (MZN)': d.valorIva,
+    'IVA dedutível (MZN)': d.regraIva ? d.regraIva.dedutivel : d.valorIva, 'IVA não dedutível (MZN)': d.regraIva ? d.regraIva.naoDedutivel : 0,
+    'Regra do IVA': d.regraIva ? d.regraIva.motivo : '', 'IRPC': d.regraIva ? d.regraIva.irpc : '',
     'Conta PGC': d.contaPGC, 'Nome Conta': d.nomeContaPGC, 'Justificação PGC': d.justificacaoPGC,
     'Confiança (%)': d.confianca, 'Estado': d.semaforo === 'verde' ? 'Confirmado' : 'A confirmar',
     'Problemas': (d.problemas || []).join('; ')
   }));
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 26 }, { wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 30 }, { wch: 13 }, { wch: 11 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 40 }, { wch: 12 }, { wch: 14 }, { wch: 40 }];
+  ws['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 26 }, { wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 30 }, { wch: 13 }, { wch: 11 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 30 }, { wch: 12 }, { wch: 28 }, { wch: 40 }, { wch: 12 }, { wch: 14 }, { wch: 40 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Lançamentos');
   XLSX.writeFile(wb, 'lancamentos_' + Date.now() + '.xlsx');
@@ -2415,6 +2473,7 @@ function exportarLoteExcel() {
   const prontosD = docs.filter((d) => d.estadoRevisao === 'pronto'), prontosM = movs.filter((m) => m.estadoRevisao === 'pronto');
   const linhaDoc = (d) => ({ 'Ficheiro': d.documento, 'Tipo': TIPOS_DOC[d.tipoDocumento] || d.tipoDocumento || '', 'Sentido': d.sentido || '', 'Número': d.numeroDocumento || '', 'Data': d.data,
     'Empresa': d.empresa, 'NIF': d.nif, 'Fornecedor/emissor': d.fornecedor, 'Destinatário': destinatario(d), 'Descrição': d.descricaoOperacao, 'Valor (MZN)': d.valor, 'IVA (MZN)': d.valorIva,
+    'IVA dedutível (MZN)': d.regraIva ? d.regraIva.dedutivel : d.valorIva, 'Regra do IVA': d.regraIva ? d.regraIva.motivo : '',
     'Conta': d.contaPGC, 'Designação': nomeConta(d.contaPGC), 'Pagamento': ESTADO_PAG[d.estadoPagamento] || '', 'Em aberto': d.saldoEmAberto || 0,
     'Estado': d.estadoRevisao || 'rever', 'Semáforo': d.semaforo, 'Problemas': (d.problemas || []).join('; ') });
   let lanc = [];
