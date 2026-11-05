@@ -519,6 +519,11 @@ pre.transcricao { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32
   .vista-seg button { padding-left: 8px; padding-right: 8px; font-size: 12.5px; }
 }
 
+/* v3.5: documentos de outra entidade (fora do lote) */
+.fora-lote { margin-top: 14px; }
+.fora-item { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.fora-item > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
 </style>
 </head>
 <body data-fixeros-modulo="docscan" data-fixeros-cor="#C4561C">
@@ -771,6 +776,7 @@ pre.transcricao { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32
               </div>
             </div>
             <div class="doc-list" id="doc-list"></div>
+            <div id="fora-lote"></div>
           </div>
           <div id="vista-ext" class="vista-oculta"><div id="ext-list"></div></div>
           <div id="vista-aberto" class="vista-oculta"><div class="card"><h2>Em aberto por fornecedor e cliente</h2><p class="sub">Facturas por pagar/receber, com as parcelas já associadas. Transitam para o próximo lote quando marcar este como pronto.</p><div id="aberto-list"></div></div></div>
@@ -1340,6 +1346,98 @@ function lancSentido_(doc, nifEmpresa) {
                                           : 'confirmar se é compra ou venda (escolha a empresa do lote para o sistema decidir sozinho)' };
 }
 
+// ── v3.5 IDENTIDADE: quem é quem no documento (modo A; FIXER/_SISTEMA/plano_docscan_empresas.md, H1–H9) ──
+// O sistema decide sozinho o que o documento prova; só o conflito real (H6, H7) vai para revisão.
+var LANC_FORMAS_JURIDICAS = { lda: 1, limitada: 1, ltda: 1, ltd: 1, sa: 1, sarl: 1, ei: 1, su: 1, unipessoal: 1, sociedade: 1, anonima: 1 };
+var LANC_PALAVRAS_FRACAS = { de: 1, da: 1, do: 1, das: 1, dos: 1, e: 1, the: 1, and: 1, mocambique: 1, servicos: 1, services: 1, comercial: 1, empresa: 1, grupo: 1, centro: 1 };
+function lancPalavrasEmpresa_(nome) {
+  return lancSemAcentos_(nome).replace(/s\.\s*a\.?(?=\s|$)/g, ' sa ').split(/[^a-z0-9]+/).filter(function(t) { return t.length >= 2 && !LANC_FORMAS_JURIDICAS[t]; });
+}
+// Mesmo nome = todas as palavras do nome mais curto estão no mais longo ("Kidz Kare" ⊂ "Kidz kare _ Centro medico Infantil")
+function lancMesmoNomeEmpresa_(a, b) {
+  var pa = lancPalavrasEmpresa_(a), pb = lancPalavrasEmpresa_(b);
+  if (!pa.length || !pb.length) return false;
+  var curto = pa.length <= pb.length ? pa : pb, longo = curto === pa ? pb : pa;
+  return curto.every(function(t) { return longo.indexOf(t) !== -1; });
+}
+// Nomes claramente diferentes = nenhuma palavra forte em comum
+function lancNomesDiferentes_(a, b) {
+  var fortes = function(n) { return lancPalavrasEmpresa_(n).filter(function(t) { return !LANC_PALAVRAS_FRACAS[t]; }); };
+  var pa = fortes(a), pb = fortes(b);
+  if (!pa.length || !pb.length) return false;
+  return !pa.some(function(t) { return pb.indexOf(t) !== -1; });
+}
+// NIF com 1 dígito trocado ou 2 dígitos vizinhos trocados (erro de leitura/escrita)
+function lancNifVizinho_(a, b) {
+  if (a.length !== 9 || b.length !== 9 || a === b) return false;
+  var dif = [];
+  for (var i = 0; i < 9; i++) if (a[i] !== b[i]) dif.push(i);
+  if (dif.length === 1) return true;
+  return dif.length === 2 && dif[1] === dif[0] + 1 && a[dif[0]] === b[dif[1]] && a[dif[1]] === b[dif[0]];
+}
+var LANC_NOME_TIPO = { factura_compra: 'Factura', factura_venda: 'Factura', recibo: 'Recibo', nota_credito: 'Nota de crédito', extracto: 'Extracto', outro: 'Documento' };
+// doc: { tipoDocumento, nifEmissor, nomeEmissor, nifDestinatario, nomeDestinatario }; empresa: { nif, nome }
+// Devolve null fora do modo A; senão { decisao: 'lancar'|'outra_entidade', hipotese, sentido, confirmado, problema, nota, motivo }
+function lancIdentidade_(doc, empresa) {
+  empresa = empresa || {};
+  var en = String(empresa.nif || '').replace(/\D/g, ''), nn = String(empresa.nome || '').trim();
+  if (en.length !== 9) en = '';
+  if (!en && !nn) return null;
+  var tipo = LANC_TIPOS.indexOf(doc.tipoDocumento) !== -1 ? doc.tipoDocumento : 'outro';
+  var notas = [];
+  function parte(nifBruto, nome, papel) {
+    var nif = String(nifBruto || '').replace(/\D/g, ''); nome = String(nome || '').trim();
+    var nomeIgual = !!(nn && nome && lancMesmoNomeEmpresa_(nome, nn));
+    if (en && nif === en) {   // o NIF é prova: outro nome impresso (nome comercial, leitura) só fica em nota
+      if (nn && nome && !nomeIgual && lancNomesDiferentes_(nome, nn)) notas.push('o ' + papel + ' tem o NIF da empresa com o nome "' + nome + '"');
+      return { e: 'E', por: 'nif' };
+    }
+    if (nomeIgual) {
+      if (en && nif.length === 9) {
+        if (lancNifVizinho_(nif, en)) { notas.push('NIF do ' + papel + ' lido como ' + nif + ' (1 dígito diferente de ' + en + '): assumida a empresa pelo nome'); return { e: 'E', por: 'nif_vizinho' }; }
+        return { e: 'conflito', txt: 'o ' + papel + ' tem o nome da empresa ("' + nome + '") mas outro NIF (' + nif + ' em vez de ' + en + ')' };
+      }
+      return { e: 'E', por: 'nome' };
+    }
+    if (nif || nome) return { e: 'outra', nif: nif, nome: nome };
+    return { e: 'vazia' };
+  }
+  var pe = parte(doc.nifEmissor, doc.nomeEmissor, 'emissor');
+  var pd = parte(doc.nifDestinatario, doc.nomeDestinatario, tipo === 'extracto' ? 'titular' : 'destinatário');
+  var palpite = tipo === 'factura_venda' ? 'venda' : 'compra';
+  function res(decisao, h, sentido, confirmado, problema, motivo) {
+    var porNome = (pe.e === 'E' && pe.por === 'nome') || (pd.e === 'E' && pd.por === 'nome');
+    if (porNome && confirmado) notas.push('empresa identificada pelo nome (o documento não tem o NIF ' + (en || 'da empresa') + ')');
+    return { decisao: decisao, hipotese: h, sentido: sentido, confirmado: confirmado, problema: problema || '', nota: notas.join('; '), motivo: motivo || '' };
+  }
+  var nomeE = nn || 'a empresa do lote';
+  function quem(p) { return p.nome ? p.nome + (p.nif ? ' (NIF ' + p.nif + ')' : '') : 'NIF ' + p.nif; }
+
+  // Extracto (H8): só interessa o titular da conta
+  if (tipo === 'extracto') {
+    if (pd.e === 'outra') return res('outra_entidade', 'H8', '', true, '', 'Extracto de ' + quem(pd) + ', não de ' + nomeE);
+    if (pd.e === 'conflito') return res('lancar', 'H6', '', false, 'conflito no titular do extracto: ' + pd.txt);
+    return res('lancar', 'H8', '', true);
+  }
+  if (pe.e === 'conflito' || pd.e === 'conflito')
+    return res('lancar', 'H6', palpite, false, 'conflito de identidade: ' + (pe.e === 'conflito' ? pe.txt : pd.txt) + '. Confirmar se o documento é desta empresa');
+  if (pe.e === 'E' && pd.e === 'E')
+    return res('lancar', 'H7', palpite, false, 'a empresa aparece como emissor e como destinatário (auto-facturação ou leitura errada): confirmar');
+  if (pe.e === 'E') return res('lancar', tipo === 'recibo' ? 'H9' : (pe.por === 'nome' ? 'H3' : 'H1'), 'venda', true);
+  if (pd.e === 'E') return res('lancar', tipo === 'recibo' ? 'H9' : (pd.por === 'nome' ? 'H3' : 'H2'), 'compra', true);
+  // A empresa não aparece no documento
+  if (pd.e === 'outra') {
+    var t = LANC_NOME_TIPO[tipo] || 'Documento';
+    return res('outra_entidade', 'H4', palpite, true, '',
+               t + (pe.e === 'outra' ? ' de ' + quem(pe) : '') + ' para ' + quem(pd) + ': não é de ' + nomeE + (en ? ' (NIF ' + en + ')' : ''));
+  }
+  if (pe.e === 'outra') {   // H5: talão ou VD sem destinatário — compra da empresa; o IVA só é dedutível com o NUIT dela (lancRegraIVA_)
+    notas.push('documento sem destinatário: lançado como compra de ' + nomeE);
+    return res('lancar', 'H5', 'compra', true);
+  }
+  return res('lancar', '', palpite, false, 'o documento não identifica o emissor nem o destinatário: confirmar se é compra ou venda');
+}
+
 // ── LANÇAMENTO DE UM DOCUMENTO ──
 // doc: { tipoDocumento, sentido, valor (TOTAL com IVA), valorIva, contaPGC, meioPagamento ('banco'|'caixa'|''),
 //        referenciaPaga, numeroDocumento, fornecedor, data }
@@ -1763,7 +1861,8 @@ function lancResolverLote_(estado) {
     if (d.estadoPagamento === 'por_localizar' && (estado.extractos || []).some(function(e) { return lancExtractoCobre_(e, d.data); }))
       problemas.push('pagamento não encontrado no extracto do período: foi pago por caixa, por outra conta ou noutro mês?');
     d.problemas = problemas;
-    d.semaforo = d.ramoConfirmado && Number(d.confianca) >= (estado.confiancaMinima || 80) && problemas.length === 0 && d.provaLancamento.ok && d.tipoDocumento !== 'outro' ? 'verde' : 'amarelo';
+    // v3.4: conta por memória ou regra que não depende do sector dispensa o perfil confirmado
+    d.semaforo = (d.ramoConfirmado || d.contaSegura) && Number(d.confianca) >= (estado.confiancaMinima || 80) && problemas.length === 0 && d.provaLancamento.ok && d.tipoDocumento !== 'outro' ? 'verde' : 'amarelo';
     delete d._lancProblemas;
   });
   return { itens: itens, emAberto: lancResumoAberto_(itens) };
@@ -1927,7 +2026,7 @@ function checkReady() {
   $('btn-p1').disabled = !temFicheiros;
   $('btn-run').disabled = !(temFicheiros && modoOk);
 }
-function novoLote() { files = []; resultado = null; idLote = ''; estadoLote = 'rever'; regrasRemovidas = []; renderFiles(); checkReady(); $('p3-erro').style.display = 'none'; irPasso(1); carregarLotesGuardados(); }
+function novoLote() { files = []; resultado = null; idLote = ''; estadoLote = 'rever'; regrasRemovidas = []; regrasOperacaoRemovidas = []; renderFiles(); checkReady(); $('p3-erro').style.display = 'none'; irPasso(1); carregarLotesGuardados(); }
 
 // ── PROCESSAR ──
 async function iniciar() {
@@ -1979,6 +2078,9 @@ async function iniciar() {
 
     resultado = data.data;
     const nAm = resultado.resumo ? resultado.resumo.aConfirmar : 0;
+    const rs = resultado.resumo || {};
+    if (rs.contasPorRegra !== undefined) log('Contas: ' + (rs.contasPorMemoria || 0) + ' pela memória, ' + (rs.contasPorRegra || 0) + ' por regra, ' + (rs.contasPorIA || 0) + ' pela IA', 'ok');
+    if (rs.foraDoLote) log(rs.foraDoLote + ' documento(s) de outra entidade fora do lote (ver no fim da lista)', 'warn');
     if (nAm > 0) log(nAm + ' item(ns) marcado(s) para confirmação', 'warn');
     mostrarResultado(resultado, Date.now() - t0);
     histTs = 0;
@@ -2015,6 +2117,8 @@ let estadoLote = 'rever';
 let idLote = '';
 let vistaActiva = 'docs';
 let regrasRemovidas = [];
+let regrasOperacaoRemovidas = [];   // v3.4: correcções por tipo de operação a esquecer
+const ORIGEM_CONTA = { memoria: 'Memória da empresa', regra: 'Regra (tipo de operação × sector)', ia: 'Sugerida pela IA', contabilista: 'Escolhida pelo contabilista' };
 let MAPA_CONTAS = {};
 const TIPOS_DOC = { factura_compra: 'Factura de compra', factura_venda: 'Factura de venda', recibo: 'Recibo', nota_credito: 'Nota de crédito', outro: 'Outro (sem lançamento)' };
 const ESTADO_PAG = { a_credito: 'por pagar', por_localizar: 'pagamento por localizar', pago: 'pago', parcial: 'pago em parte', liquidado: 'liquidado', na: '' };
@@ -2076,6 +2180,7 @@ function mostrarResultado(data, ms) {
 function renderTudo() {
   if (!resultado) return;
   renderDocList(resultado.documentos || []);
+  renderForaDoLote();
   renderExtractos();
   renderAberto();
   renderRegras();
@@ -2184,6 +2289,7 @@ function renderDocList(docs) {
           ${d.parcelas && d.parcelas.length ? '<div class="nota">Pagamentos associados: ' + d.parcelas.map((p) => esc(p.data) + ' ' + fmtMznDoc(p.valor)).join(' · ') + (d.saldoEmAberto > 0 ? ' · falta ' + fmtMznDoc(d.saldoEmAberto) : '') + '</div>' : ''}
           <div class="acoes-doc fim">
             ${d.nif && !semLanc ? `<label class="chk"><input type="checkbox" ${d.lembrar ? 'checked' : ''} onchange="docLembrar(${i}, this.checked)"/> Lembrar para este fornecedor/cliente</label>` : ''}
+            ${d.chaveOperacao && !semLanc ? `<label class="chk"><input type="checkbox" ${d.lembrarOperacao ? 'checked' : ''} onchange="docLembrarOperacao(${i}, this.checked)"/> Lembrar para «${esc(d.categoriaNome || d.chaveOperacao.replace(/^desc:/, ''))}»</label>` : ''}
             ${d.nif && !semLanc ? `<button class="btn btn-s" onclick="docAplicarFornecedor(${i})">Aplicar esta conta a todos deste NIF</button>` : ''}
             <button class="btn btn-s" onclick="docIgnorar(${i})">${d.estadoRevisao === 'ignorado' ? 'Repor' : 'Ignorar / duplicado'}</button>
             <button class="btn btn-p" onclick="docConfirmar(${i})" ${d.estadoRevisao === 'pronto' ? 'disabled' : ''}>Confirmar</button>
@@ -2204,6 +2310,8 @@ function renderDocList(docs) {
             <div class="detail-pgc-conta">${esc(d.contaPGC || '—')}</div>
             <div class="detail-pgc-nome">${esc(d.nomeContaPGC || nomeConta(d.contaPGC) || '—')}</div>
             <div class="detail-pgc-just">${esc(d.justificacaoPGC || 'Sem justificação disponível.')}</div>
+            ${d.notaEmpresa ? `<div class="nota">Empresa: ${esc(d.notaEmpresa)}</div>` : ''}
+            ${d.origemConta ? `<div class="nota">Origem: ${esc(ORIGEM_CONTA[d.origemConta] || d.origemConta)}${d.categoriaNome ? ' · tipo de operação: ' + esc(d.categoriaNome) : ''}</div>` : ''}
           </div>
           <div><div class="confianca-top"><span>Confiança</span><span>${esc(d.confianca)}%</span></div>
           <div class="confianca-track"><div class="confianca-fill ${ccls}" style="width:${Math.max(0, Math.min(100, Number(d.confianca) || 0))}%"></div></div></div>
@@ -2231,6 +2339,33 @@ function fmtMznDoc(v) {
   return fmtMZN(v);
 }
 
+// ── v3.5: documentos de outra entidade (H4/H8) — saíram do lote com o motivo; o contabilista pode repor ──
+function renderForaDoLote() {
+  const box = $('fora-lote'); if (!box) return;
+  const fora = (resultado && resultado.foraDoLote) || [];
+  if (!fora.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="card fora-lote"><h2>Fora do lote (' + fora.length + ')</h2>' +
+    '<p class="sub">Documentos de outra entidade: não são lançados nem exportados. Reponha só se for mesmo desta empresa.</p>' +
+    fora.map((f, k) => '<div class="fora-item"><div><b>' + esc(f.fornecedor || f.documento) + '</b>' + (f.numeroDocumento ? ' · ' + esc(f.numeroDocumento) : '') +
+      ' · ' + fmtMznDoc(f.valor) + '<div class="nota">' + esc(f.motivo) + '</div></div>' +
+      (f.linkOriginal ? '<a class="ver" href="' + esc(f.linkOriginal) + '" target="_blank" rel="noopener noreferrer">Original →</a>' : '') +
+      (f.tipoDocumento !== 'extracto' ? '<button class="btn btn-s" onclick="reporForaDoLote(' + k + ')">Repor no lote</button>' : '') + '</div>').join('') + '</div>';
+}
+function reporForaDoLote(k) {
+  if (!resultado || estadoLote !== 'rever') { toast('O lote já está ' + estadoLote + ': não pode ser alterado', 'warn'); return; }
+  const f = (resultado.foraDoLote || [])[k]; if (!f) return;
+  const d = Object.assign({}, f, {
+    foraDoLote: false, idDoc: 'r' + Date.now() + '_' + k, sentido: f.tipoDocumento === 'factura_venda' ? 'venda' : 'compra', sentidoConfirmado: false,
+    problemaSentido: 'reposto pelo contabilista: confirmar compra ou venda', contaPGC: '', nomeContaPGC: '', justificacaoPGC: '', confianca: 0, confiancaExtracao: 0,
+    ramoConfirmado: false, estadoRevisao: 'rever', semaforo: 'amarelo', partidas: [], problemas: [], meioPagamento: '',
+    problemasLeitura: ['reposto no lote pelo contabilista (o sistema tinha: ' + f.motivo + '): escolher a conta'],
+    empresa: (resultado.resumo && resultado.resumo.empresa) || '', empresaNifLote: resultado.empresaNif || '', _aberto: true });
+  resultado.foraDoLote.splice(k, 1);
+  resultado.documentos.push(d);
+  resultado.resumo.foraDoLote = resultado.foraDoLote.length;
+  recalcular(); renderTudo();
+}
+
 // ── acções por documento (cada alteração volta a "rever" e recalcula o lote todo) ──
 function alterarDoc(i, fn) {
   const d = resultado.documentos[i]; if (!d || estadoLote !== 'rever') { if (estadoLote !== 'rever') toast('O lote já está ' + estadoLote + ': não pode ser alterado', 'warn'); return; }
@@ -2242,10 +2377,13 @@ function docSentido(i, v) { alterarDoc(i, (d) => { d.sentido = v === 'venda' ? '
 function docConta(i, texto) {
   const c = contaDeTexto(texto);
   if (c && Object.keys(MAPA_CONTAS).length && !MAPA_CONTAS[c]) { toast('A conta ' + c + ' não existe no plano oficial', 'err'); renderTudo(); return; }
-  alterarDoc(i, (d) => { d.contaPGC = c; d.nomeContaPGC = nomeConta(c); d.justificacaoPGC = 'conta escolhida pelo contabilista'; d.problemasLeitura = (d.problemasLeitura || []).filter((p) => !/conta PGC inválida/.test(p)); });
+  // v3.4: a correcção fica na memória da empresa para este tipo de operação (desmarcável) — a próxima vez não precisa de IA
+  alterarDoc(i, (d) => { d.contaPGC = c; d.nomeContaPGC = nomeConta(c); d.justificacaoPGC = 'conta escolhida pelo contabilista'; d.origemConta = 'contabilista'; d.lembrarOperacao = !!(c && d.chaveOperacao);
+    d.problemasLeitura = (d.problemasLeitura || []).filter((p) => !/conta PGC inválida|conta PGC por escolher/.test(p)); });
 }
 function docMeio(i, v) { alterarDoc(i, (d) => { d.meioPagamento = v; }); }
 function docLembrar(i, v) { const d = resultado.documentos[i]; if (d) d.lembrar = !!v; }
+function docLembrarOperacao(i, v) { const d = resultado.documentos[i]; if (d) d.lembrarOperacao = !!v; }
 function docAplicarFornecedor(i) {
   const ref = resultado.documentos[i]; if (!ref || !ref.contaPGC || !ref.nif) { toast('Escolha primeiro a conta', 'warn'); return; }
   let n = 0;
@@ -2338,9 +2476,21 @@ function renderRegras() {
   h += nifs.length ? '<table class="partidas"><thead><tr><th>NIF</th><th>Nome</th><th>Conta</th><th>Pago por</th><th></th></tr></thead><tbody>' +
     nifs.map((n) => '<tr><td class="mono">' + esc(n) + '</td><td>' + esc(r[n].nome || '') + '</td><td class="mono">' + esc(r[n].conta) + ' ' + esc(nomeConta(r[n].conta)) + '</td><td>' + esc(r[n].meioPagamento || '—') + '</td><td><button class="btn btn-s" onclick="removerRegra(\'' + esc(n) + '\')">Remover</button></td></tr>').join('') + '</tbody></table>'
     : '<div class="vazio">Ainda sem regras para esta empresa</div>';
+  // v3.4: correcções por tipo de operação (aplicadas antes das regras gerais, sem IA)
+  const ro = resultado.regrasOperacao || {}, chaves = Object.keys(ro).filter((k) => regrasOperacaoRemovidas.indexOf(k) === -1);
+  const novasOp = regrasOperacaoNovasDoLote();
+  if (novasOp.length) h += '<p class="nota">Correcções por tipo de operação que ficam ao marcar o lote como pronto: ' + novasOp.map((r) => esc(r.descricao + ' → ' + r.conta)).join('; ') + '</p>';
+  if (chaves.length) h += '<table class="partidas"><thead><tr><th>Tipo de operação</th><th>Conta</th><th></th></tr></thead><tbody>' +
+    chaves.map((k) => '<tr><td>' + esc(ro[k].descricao || k.replace(/^(cat|desc):/, '')) + '</td><td class="mono">' + esc(ro[k].conta) + ' ' + esc(nomeConta(ro[k].conta)) + '</td><td><button class="btn btn-s" onclick="removerRegraOperacao(\'' + esc(k) + '\')">Remover</button></td></tr>').join('') + '</tbody></table>';
   $('regras-list').innerHTML = h;
 }
 function removerRegra(nif) { if (regrasRemovidas.indexOf(nif) === -1) regrasRemovidas.push(nif); renderRegras(); toast('A regra é removida quando marcar o lote como pronto'); }
+function removerRegraOperacao(k) { if (regrasOperacaoRemovidas.indexOf(k) === -1) regrasOperacaoRemovidas.push(k); renderRegras(); toast('A correcção é esquecida quando marcar o lote como pronto'); }
+function regrasOperacaoNovasDoLote() {
+  const vistas = {};
+  return (resultado.documentos || []).filter((d) => d.lembrarOperacao && d.chaveOperacao && d.contaPGC && d.estadoRevisao !== 'ignorado' && !vistas[d.chaveOperacao] && (vistas[d.chaveOperacao] = 1))
+    .map((d) => ({ chave: d.chaveOperacao, conta: d.contaPGC, sentido: d.sentido, descricao: d.categoriaNome || d.descricaoOperacao || '' }));
+}
 
 // ── estados do lote: guardar, pronto ──
 async function pedidoGAS(payload) {
@@ -2366,8 +2516,10 @@ async function marcarPronto() {
     .map((d) => ({ nif: d.nif, nome: d.fornecedor || d.empresa, conta: d.contaPGC, meioPagamento: d.meioPagamento || '', taxaIva: d.taxaIva }));
   try {
     await pedidoGAS({ accao: 'confirmarLote', empresaNif: resultado.empresaNif || '', documentos: resultado.documentos, itensAbertos: resultado.itensAbertos || [],
-                      regrasNovas, regrasRemovidas, planos: resultado.planos || [] });
-    estadoLote = 'pronto'; regrasRemovidas = [];
+                      regrasNovas, regrasRemovidas, planos: resultado.planos || [],
+                      regrasOperacaoNovas: regrasOperacaoNovasDoLote().filter((r) => resultado.documentos.some((d) => d.chaveOperacao === r.chave && d.estadoRevisao === 'pronto')),
+                      regrasOperacaoRemovidas });
+    estadoLote = 'pronto'; regrasRemovidas = []; regrasOperacaoRemovidas = [];
     await guardarLoteServidor(true);
     renderTudo(); toast('Lote pronto: memória da empresa actualizada (pendentes, regras, duplicados)');
   } catch (e) { toast('Não foi possível marcar como pronto: ' + e.message, 'err'); }
