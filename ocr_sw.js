@@ -3,7 +3,7 @@
 // Caminhos RELATIVOS: no GitHub Pages a app vive em /<repo>/ — "/index.html" apontava para a raiz do domínio
 // e a instalação falhava. Ao publicar um front novo, voltar a gerar (muda CACHE).
 const CACHE = 'docscan-2026-11-18';
-const ASSETS = ["./", "./index.html", "./manifest.json", "./fixeros-auth.js", "./icon/icon-192.png", "./icon/icon-512.png"];
+const ASSETS = ["./", "./index.html", "./manifest.json", "./fixeros-auth.js", "./fixeros-config.js", "./icon/icon-192.png", "./icon/icon-512.png"];
 
 self.addEventListener('install', e => {
   // Cada ficheiro à parte: um ícone em falta não pode impedir a instalação
